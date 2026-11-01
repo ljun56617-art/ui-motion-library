@@ -1,0 +1,156 @@
+<!doctype html>
+<!--
+名称：拖拽上传（Dropzone）
+编号：04-forms/07
+什么时候用：把文件拖进虚线区就开始传，每个文件有进度，传错了能删。
+一句话提示词：做一个拖拽上传区（Dropzone）：虚线框，文件拖到上方时高亮并放大 3%；松手后列出文件名和进度条，完成显示对勾；格式不对的文件标红并可点叉移除。
+操作提示：点虚线框模拟上传
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>拖拽上传</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.f-up { width: min(86%, 280px); display: grid; gap: 9px; }
+.f-drop { display: block; width: 100%; padding: 22px 12px; border: 2px dashed var(--line); border-radius: 13px; text-align: center; font-size: 14px; color: var(--muted); background: transparent; cursor: pointer; transition: border-color .2s, background .2s, transform .2s; }
+.f-drop:hover, .f-drop.over { border-color: var(--accent); background: var(--soft); color: var(--ink); }
+.f-drop.over { transform: scale(1.03); }
+.f-drop b { display: block; font-size: 22px; line-height: 1.2; color: var(--accent); }
+.f-file { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; font-size: 13px; padding: 7px 10px; background: var(--surface); border-radius: 9px; animation: f-tag .3s; }
+.f-file span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-file em { font: 12px var(--mono); font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.f-file em.ok { color: var(--ok); font-weight: 700; }
+.f-file i { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.f-file i::after { content: ""; display: block; height: 100%; width: var(--w, 0%); background: var(--accent); }
+.f-file .x { grid-column: 2; grid-row: 1; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; }
+.f-file.bad { box-shadow: inset 0 0 0 1px var(--err); }
+.f-file.bad em { color: var(--err); grid-column: 1 / -1; }
+@keyframes f-tag { from { transform: scale(.4); opacity: 0; } }
+</style></head>
+<body><article class="sp" data-name="拖拽上传" data-en="Dropzone" data-demo="upload" data-hint="点虚线框模拟上传" data-use="把文件拖进虚线区就开始传，每个文件有进度，传错了能删。" data-prompt="做一个拖拽上传区（Dropzone）：虚线框，文件拖到上方时高亮并放大 3%；松手后列出文件名和进度条，完成显示对勾；格式不对的文件标红并可点叉移除。"><div class="stage"><div class="f-up"><button class="f-drop" type="button" style="padding-block:13px"><b>↑</b>把文件拖到这里，或点击模拟上传</button><div class="f-files" style="display:grid;gap:6px"></div></div></div></article>
+<script>window.demo = {};
+demo.upload = (stage, U) => {
+  const drop = stage.querySelector('.f-drop');
+  const files = stage.querySelector('.f-files');
+  const addBad = () => {
+    const row = document.createElement('div');
+    row.className = 'f-file bad';
+    const label = document.createElement('span'); label.textContent = '安装包.exe';
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '×'; x.setAttribute('aria-label', '移除这个文件');
+    x.addEventListener('click', () => row.remove());
+    const why = document.createElement('em'); why.textContent = '格式不支持，只能传 PDF 或图片';
+    row.append(label, x, why);
+    files.appendChild(row);
+  };
+  let runId = 0;
+  const run = (name) => {
+    const id = ++runId; // A newer upload supersedes this one, so its finish must not add rows.
+    files.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'f-file';
+    const label = document.createElement('span'); label.textContent = name;
+    const pct = document.createElement('em');
+    const bar = document.createElement('i');
+    row.append(label, pct, bar);
+    files.appendChild(row);
+    U.tween(1400, (p) => {
+      bar.style.setProperty('--w', (p * 100) + '%');
+      pct.textContent = Math.round(p * 100) + '%';
+    }, () => {
+      if (id !== runId) return;
+      pct.textContent = '✓ 完成'; pct.className = 'ok'; addBad();
+    });
+  };
+  drop.addEventListener('click', () => run('课程大纲-示例.pdf'));
+  ['dragenter', 'dragover'].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((n) => drop.addEventListener(n, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    run(f ? f.name : '未命名文件');
+  });
+  stage.addEventListener('inview', () => run('课程大纲-示例.pdf'));
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

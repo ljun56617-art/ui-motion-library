@@ -1,0 +1,114 @@
+<!doctype html>
+<!--
+名称：聚光（Spotlight）
+编号：03-motion/09
+什么时候用：光斑跟着光标在卡片上移动，边框也会在光标附近亮起。
+关键参数：径向渐变 · CSS 变量记鼠标坐标
+一句话提示词：做聚光效果（Spotlight）：用 CSS 变量记录鼠标坐标，径向渐变让卡片底色和 1.5px 边框在鼠标附近发亮，离开后恢复。
+操作提示：鼠标在卡上移动
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>聚光</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.c-spot-wrap { width: min(84%, 260px); position: relative; padding: 1.5px; border-radius: 15px; background: radial-gradient(170px circle at var(--x, 50%) var(--y, 50%), var(--accent), var(--line) 70%); }
+.c-spot { position: relative; padding: 18px 16px; border-radius: 14px; background: radial-gradient(150px circle at var(--x, 50%) var(--y, 50%), var(--soft), var(--surface) 75%); }
+.c-spot h4 { margin: 0 0 4px; font-size: 16px; }
+.c-spot p { margin: 0; font-size: 13.5px; color: var(--muted); }
+</style></head>
+<body><article class="sp" data-name="聚光" data-en="Spotlight" data-demo="spot" data-hint="鼠标在卡上移动" data-params="径向渐变 · CSS 变量记鼠标坐标" data-use="光斑跟着光标在卡片上移动，边框也会在光标附近亮起。" data-prompt="做聚光效果（Spotlight）：用 CSS 变量记录鼠标坐标，径向渐变让卡片底色和 1.5px 边框在鼠标附近发亮，离开后恢复。"><div class="stage"><div class="c-spot-wrap"><div class="c-spot"><h4>一句话复刻</h4><p>记住组件的名字和两三个参数，AI 就能照着做出来。</p></div></div></div></article>
+<script>window.demo = {};
+demo.spot = (stage, U) => {
+  const wrap = stage.querySelector('.c-spot-wrap');
+  const spot = stage.querySelector('.c-spot');
+  const set = (x, y) => [wrap, spot].forEach((el) => { el.style.setProperty('--x', x + 'px'); el.style.setProperty('--y', y + 'px'); });
+  wrap.addEventListener('pointermove', (e) => { stage.dataset.touched = '1'; const r = wrap.getBoundingClientRect(); set(e.clientX - r.left, e.clientY - r.top); });
+  U.frame(stage, (t) => {
+    if (stage.dataset.touched) return;
+    set(wrap.clientWidth * (.5 + .5 * Math.sin(t / 900)), wrap.clientHeight * (.5 + .5 * Math.cos(t / 700)));
+  });
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

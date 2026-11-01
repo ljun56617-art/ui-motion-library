@@ -1,0 +1,54 @@
+<!doctype html>
+<!--
+名称：不确定进度条（Indeterminate Progress）
+编号：05-loading/17
+什么时候用：不知道还要多久时用。一小段在轨道上来回走，只表示「还在忙」，不给百分比。
+一句话提示词：做一个不确定进度条：细长轨道，一段占 42% 宽的渐变色块从左到右循环滑过，1.7 秒一轮，两头慢、中间快，不显示百分比。
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>不确定进度条</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.l-ind { width: min(74%, 240px); height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.l-ind i { display: block; width: 42%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--gold), var(--accent)); animation: l-ind 1.7s cubic-bezier(.65, 0, .35, 1) infinite; }
+@keyframes l-ind { from { transform: translateX(-100%); } to { transform: translateX(240%); } }
+</style></head>
+<body><article class="sp" data-name="不确定进度条" data-en="Indeterminate Progress" data-use="不知道还要多久时用。一小段在轨道上来回走，只表示「还在忙」，不给百分比。" data-prompt="做一个不确定进度条：细长轨道，一段占 42% 宽的渐变色块从左到右循环滑过，1.7 秒一轮，两头慢、中间快，不显示百分比。"><div class="stage"><div class="l-ind" role="img" aria-label="加载中"><i></i></div></div></article>
+</body></html>

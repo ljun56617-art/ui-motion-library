@@ -1,0 +1,134 @@
+<!doctype html>
+<!--
+名称：滑动确认（Slide to Confirm）
+编号：01-buttons/09
+什么时候用：付款、解锁这类要用户明确同意的动作。手机上单手就能完成。
+一句话提示词：做一个滑动确认条：拖动圆钮向右，提示文字有光扫过；拖过 85% 判定成功并变绿，没到就回弹到起点。
+操作提示：拖动圆钮到最右
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>滑动确认</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.b-slide { position: relative; width: min(84%, 270px); height: 54px; border-radius: 27px; background: var(--soft); overflow: hidden; user-select: none; -webkit-user-select: none; }
+.b-slide .bar { position: absolute; inset: 0 auto 0 0; width: 54px; background: var(--accent); opacity: .35; border-radius: 27px; }
+.b-slide .lab { position: absolute; inset: 0; display: grid; place-items: center; padding-left: 40px; font-size: 14px; font-weight: 500; background: linear-gradient(100deg, var(--muted) 40%, var(--accent) 50%, var(--muted) 60%) 0 0 / 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: b-shine 2.4s linear infinite; }
+.b-slide .hd { position: absolute; left: 4px; top: 4px; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 20px; cursor: grab; touch-action: none; }
+.b-slide .hd:active { cursor: grabbing; }
+.b-slide.back .hd, .b-slide.back .bar { transition: all .3s cubic-bezier(.3, 1.3, .5, 1); }
+.b-slide.done .lab { animation: none; background: none; color: var(--ok); -webkit-text-fill-color: var(--ok); font-weight: 600; padding-left: 0; }
+@keyframes b-shine { from { background-position: 100% 0; } to { background-position: -40% 0; } }
+</style></head>
+<body><article class="sp" data-name="滑动确认" data-en="Slide to Confirm" data-demo="slide" data-hint="拖动圆钮到最右" data-use="付款、解锁这类要用户明确同意的动作。手机上单手就能完成。" data-prompt="做一个滑动确认条：拖动圆钮向右，提示文字有光扫过；拖过 85% 判定成功并变绿，没到就回弹到起点。"><div class="stage"><div class="b-slide"><span class="bar"></span><span class="lab">向右滑动，确认付款</span><button class="hd" type="button" aria-label="拖动确认，也可以按回车">→</button></div></div></article>
+<script>window.demo = {};
+demo.slide = (stage, U) => {
+  const box = stage.querySelector('.b-slide');
+  const hd = box.querySelector('.hd');
+  const bar = box.querySelector('.bar');
+  const lab = box.querySelector('.lab');
+  const label = lab.textContent;
+  const max = () => box.clientWidth - hd.offsetWidth - 8;
+  const set = (x) => { hd.style.left = (4 + x) + 'px'; bar.style.width = (x + 54) + 'px'; };
+  const reset = () => { box.classList.add('back'); box.classList.remove('done'); lab.textContent = label; hd.textContent = '→'; set(0); };
+  const finish = () => {
+    box.classList.add('back', 'done'); set(max()); lab.textContent = '已确认'; hd.textContent = '✓';
+    setTimeout(reset, 1800);
+  };
+  let from = null;
+  hd.addEventListener('pointerdown', (e) => { if (box.classList.contains('done')) return; from = e.clientX; hd.setPointerCapture(e.pointerId); box.classList.remove('back'); });
+  hd.addEventListener('pointermove', (e) => { if (from !== null) set(Math.max(0, Math.min(max(), e.clientX - from))); });
+  hd.addEventListener('pointerup', (e) => {
+    if (from === null) return;
+    const dragged = e.clientX - from; from = null;
+    if (dragged > max() * .85) finish(); else reset();
+  });
+  hd.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(); } });
+  U.auto(stage, () => {
+    box.classList.remove('back');
+    U.tween(1000, (p) => set(max() * .92 * U.easeOut(p)), finish);
+  }, 5200);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

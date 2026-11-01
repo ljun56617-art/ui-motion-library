@@ -1,0 +1,122 @@
+<!doctype html>
+<!--
+名称：行内操作（Row Actions）
+编号：06-cards/23
+什么时候用：编辑、删除收在行尾，光标经过才露出来，表格看着清爽。
+一句话提示词：做行内操作（Row Actions）：编辑、删除按钮放在每行末尾，平时隐藏，鼠标移到这一行时淡入并左移 7px；手机上始终显示。
+操作提示：移到某一行
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>行内操作</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.k-rows { width: min(92%, 320px); background: var(--surface); border-radius: 11px; box-shadow: 0 3px 11px var(--shadow); overflow: hidden; }
+.k-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px; transition: background .15s, opacity .2s, min-height .2s; }
+.k-row:last-child { border-bottom: 0; }
+.k-row:hover, .k-row.show { background: var(--stage); }
+.k-acts { display: flex; gap: 8px; opacity: 0; transform: translateX(7px); transition: opacity .15s, transform .15s; }
+.k-row:hover .k-acts, .k-row:focus-within .k-acts, .k-row.show .k-acts { opacity: 1; transform: none; }
+.k-acts button { border: 0; background: none; cursor: pointer; color: var(--accent); font-size: 13px; padding: 2px; }
+.k-acts button.del { color: var(--err); }
+.k-row.gone { opacity: 0; min-height: 0; height: 0; overflow: hidden; border: 0; }
+@media (hover: none) {
+.k-acts { opacity: 1; transform: none; }
+}
+@keyframes k-row { from { opacity: 0; transform: translateY(-5px); } }
+</style></head>
+<body><article class="sp" data-name="行内操作" data-en="Row Actions" data-demo="rowActs" data-hint="移到某一行" data-use="编辑、删除收在行尾，光标经过才露出来，表格看着清爽。" data-prompt="做行内操作（Row Actions）：编辑、删除按钮放在每行末尾，平时隐藏，鼠标移到这一行时淡入并左移 7px；手机上始终显示。"><div class="stage"><div class="k-rows"><div class="k-row"><span>第 1 讲：认识按钮</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 2 讲：弹窗怎么选</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 3 讲：16 种动效</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 4 讲：表单</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div></div></div></article>
+<script>window.demo = {};
+demo.rowActs = (stage, U) => {
+  const rows = [...stage.querySelectorAll('.k-row')];
+  let i = 0;
+  rows.forEach((r) => r.querySelector('.del').addEventListener('click', () => {
+    r.classList.add('gone');
+    setTimeout(() => r.classList.remove('gone'), 1600); // Sample data: bring the row back so the demo stays usable.
+  }));
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; rows.forEach((r) => r.classList.remove('show')); });
+  U.auto(stage, () => { rows.forEach((r, k) => r.classList.toggle('show', k === i)); i = (i + 1) % rows.length; }, 1300);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

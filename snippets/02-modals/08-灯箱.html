@@ -1,0 +1,141 @@
+<!doctype html>
+<!--
+名称：灯箱（Lightbox）
+编号：02-modals/08
+什么时候用：看大图。图片从原来的位置放大出来，用户知道它从哪来、回哪去。
+一句话提示词：做一个图片灯箱：点缩略图时，图片从缩略图原位放大到屏幕中央（用 FLIP 动画），背景压暗，再点一下收回原位。
+操作提示：点小图放大，再点收回
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>灯箱</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.m-thumbs { display: flex; gap: 9px; }
+.m-thumbs button { width: 84px; height: 84px; border: 0; padding: 0; border-radius: 10px; cursor: zoom-in; }
+.m-art1 { background: linear-gradient(160deg, var(--art3), var(--art1) 60%, var(--art2)); }
+.m-art2 { background: radial-gradient(circle at 30% 30%, var(--art3) 18%, transparent 19%), linear-gradient(200deg, var(--art1), var(--art2)); }
+.m-art3 { background: linear-gradient(158deg, transparent 62%, var(--art2) 62.5%), linear-gradient(204deg, transparent 48%, var(--art1) 48.5%), linear-gradient(var(--art3), var(--art3)); }
+.m-lb { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; visibility: hidden; background: transparent; transition: background .3s, visibility 0s .3s; cursor: zoom-out; }
+.on .m-lb { visibility: visible; background: var(--scrim); transition: background .3s; }
+.m-lb-img { width: 72%; height: 78%; border-radius: 12px; display: grid; align-items: end; color: var(--on-art); padding: 7px 11px; font-size: 13px; transform-origin: 0 0; box-shadow: 0 14px 34px var(--shadow); }
+.m-lb-img span { opacity: 0; transition: opacity .2s .2s; }
+.on .m-lb-img span { opacity: 1; }
+</style></head>
+<body><article class="sp" data-name="灯箱" data-en="Lightbox" data-demo="lightbox" data-hint="点小图放大，再点收回" data-use="看大图。图片从原来的位置放大出来，用户知道它从哪来、回哪去。" data-prompt="做一个图片灯箱：点缩略图时，图片从缩略图原位放大到屏幕中央（用 FLIP 动画），背景压暗，再点一下收回原位。"><div class="stage"><div class="m-thumbs"><button class="m-art1" type="button" aria-label="查看第 1 张"></button><button class="m-art2" type="button" aria-label="查看第 2 张"></button><button class="m-art3" type="button" aria-label="查看第 3 张"></button></div>
+    <div class="m-lb"><div class="m-lb-img"><span>第 1 张 · 示例图</span></div></div></div></article>
+<script>window.demo = {};
+demo.lightbox = (stage, U) => {
+  const img = stage.querySelector('.m-lb-img');
+  const lb = stage.querySelector('.m-lb');
+  const label = img.querySelector('span');
+  const thumbs = [...stage.querySelectorAll('.m-thumbs button')];
+  let current = null;
+  const flip = (thumb, opening) => {
+    const a = thumb.getBoundingClientRect();
+    const b = img.getBoundingClientRect();
+    const from = 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px) scale(' + (a.width / b.width) + ',' + (a.height / b.height) + ')';
+    const frames = [{ transform: from }, { transform: 'none' }];
+    return img.animate(opening ? frames : frames.reverse(), { duration: 340, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'both' });
+  };
+  const open = (thumb, n) => {
+    current = thumb;
+    img.className = 'm-lb-img ' + thumb.className;
+    label.textContent = '第 ' + (n + 1) + ' 张 · 示例图';
+    stage.classList.add('on');
+    flip(thumb, true);
+  };
+  const close = () => {
+    if (!current) return;
+    const anim = flip(current, false);
+    current = null;
+    stage.classList.remove('on');
+    anim.onfinish = () => anim.cancel();
+  };
+  thumbs.forEach((t, n) => t.addEventListener('click', () => open(t, n)));
+  lb.addEventListener('click', close);
+  stage.addEventListener('inview', () => open(thumbs[0], 0));
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

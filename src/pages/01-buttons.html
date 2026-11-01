@@ -1,0 +1,392 @@
+<style>
+.b-primary { padding: 13px 34px; font-size: 16px; box-shadow: 0 5px 0 var(--accent-deep); }
+.b-primary:hover { transform: translateY(-2px); box-shadow: 0 7px 0 var(--accent-deep); }
+.b-primary:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-deep); }
+
+.b-outline { position: relative; overflow: hidden; z-index: 0; padding: 13px 34px; font-size: 16px; background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); transition: color .2s; }
+.b-outline::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .2s ease-out; }
+.b-outline:hover, .b-outline.fill { color: var(--accent-ink); }
+.b-outline:hover::before, .b-outline.fill::before { transform: scaleX(1); }
+
+.b-ripple { position: relative; overflow: hidden; padding: 16px 44px; font-size: 16px; }
+.b-ripple span { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent-ink); opacity: .45; pointer-events: none; animation: b-rp .75s ease-out forwards; }
+@keyframes b-rp { to { transform: scale(22); opacity: 0; } }
+
+.b-load { position: relative; height: 48px; width: 150px; padding: 0; overflow: hidden; transition: width .3s, border-radius .3s, background .3s; font-size: 15px; }
+.b-load .tx { display: block; transition: opacity .15s; }
+.b-load .sp-i { position: absolute; inset: 0; margin: auto; width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--accent-ink); border-right-color: transparent; opacity: 0; }
+.b-load .ok-i { position: absolute; inset: 0; margin: auto; width: 24px; height: 24px; opacity: 0; }
+.b-load .ok-i path { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.b-load.busy, .b-load.done { width: 48px; border-radius: 24px; }
+.b-load.busy .tx, .b-load.done .tx { opacity: 0; }
+.b-load.busy .sp-i { opacity: 1; animation: b-spin .8s linear infinite; }
+.b-load.done { background: var(--ok); color: var(--surface); }
+.b-load.done .ok-i { opacity: 1; }
+.b-load.done .ok-i path { stroke-dashoffset: 0; transition: stroke-dashoffset .35s .1s; }
+@keyframes b-spin { to { transform: rotate(360deg); } }
+
+.b-like { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.b-heart { position: relative; width: 64px; height: 64px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--soft); cursor: pointer; transition: transform .15s; }
+.b-heart:active { transform: scale(.9); }
+.b-heart svg { width: 32px; height: 32px; fill: transparent; stroke: var(--accent); stroke-width: 2; transition: fill .15s; }
+.b-heart.liked svg { fill: var(--accent); animation: b-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+.b-heart i { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--gold); opacity: 0; }
+.b-heart.liked i { animation: b-burst .55s ease-out; }
+.b-heart i:nth-child(2) { --d: 0deg; } .b-heart i:nth-child(3) { --d: 60deg; } .b-heart i:nth-child(4) { --d: 120deg; }
+.b-heart i:nth-child(5) { --d: 180deg; } .b-heart i:nth-child(6) { --d: 240deg; } .b-heart i:nth-child(7) { --d: 300deg; }
+@keyframes b-pop { 0% { transform: scale(.4); } 100% { transform: scale(1); } }
+@keyframes b-burst { 0% { opacity: 1; transform: rotate(var(--d)) translateY(-18px) scale(1); } 100% { opacity: 0; transform: rotate(var(--d)) translateY(-46px) scale(.3); } }
+.b-like output { font: 600 14px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.b-fab-box { position: absolute; right: 22px; bottom: 22px; display: grid; justify-items: end; gap: 10px; }
+.b-fab { width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: 0 6px 14px var(--shadow); display: grid; place-items: center; transition: transform .3s cubic-bezier(.3, 1.5, .5, 1); }
+.b-fab svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.on .b-fab { transform: rotate(135deg); }
+.b-act { display: flex; align-items: center; gap: 8px; border: 0; background: var(--surface); border-radius: 18px; padding: 5px 14px; font-size: 13px; box-shadow: 0 3px 9px var(--shadow); cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(14px) scale(.85); transition: transform .25s cubic-bezier(.3, 1.4, .5, 1), opacity .2s, visibility 0s .25s; }
+.on .b-act { opacity: 1; visibility: visible; transform: none; transition-delay: calc(var(--i) * 55ms), calc(var(--i) * 55ms), 0s; }
+
+.b-seg { position: relative; display: flex; padding: 4px; border-radius: 12px; background: var(--soft); }
+.b-seg button { position: relative; z-index: 1; border: 0; background: none; padding: 8px 20px; cursor: pointer; font-weight: 500; transition: color .2s; }
+.b-seg button[aria-pressed="true"] { color: var(--accent-ink); font-weight: 600; }
+.b-seg .pill { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 9px; background: var(--accent); box-shadow: 0 2px 6px var(--shadow); transition: transform .2s cubic-bezier(.3, 1.2, .5, 1), width .2s; }
+
+.b-group { display: inline-flex; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); background: var(--surface); }
+.b-group button { width: 46px; height: 42px; border: 0; background: none; cursor: pointer; font-size: 16px; transition: background .15s, color .15s, transform .1s; }
+.b-group button + button { border-left: 1px solid var(--line); }
+.b-group button:first-child { border-radius: 10px 0 0 10px; } .b-group button:last-child { border-radius: 0 10px 10px 0; }
+.b-group button:active { transform: scale(.92); }
+.b-group button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+.b-sw { display: flex; align-items: center; gap: 14px; cursor: pointer; font-size: 16px; }
+.b-sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.b-track { position: relative; width: 58px; height: 32px; border-radius: 16px; background: var(--line); transition: background .2s; }
+.b-knob { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 13px; background: var(--surface); box-shadow: 0 2px 5px var(--shadow); transition: left .2s cubic-bezier(.3, 1.3, .5, 1), width .15s; }
+.b-sw:active .b-knob { width: 33px; }
+.b-sw input:checked + .b-track { background: var(--accent); }
+.b-sw input:checked + .b-track .b-knob { left: 29px; }
+.b-sw:active input:checked + .b-track .b-knob { left: 22px; }
+.b-sw input:focus-visible + .b-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.b-hold { position: relative; overflow: hidden; width: 190px; height: 50px; padding: 0; background: var(--soft); color: var(--err); touch-action: none; user-select: none; -webkit-user-select: none; }
+.b-hold .fill { position: absolute; inset: 0; background: var(--err); transform: scaleX(0); transform-origin: left; transition: transform .25s ease-out; }
+.b-hold .tx { position: relative; }
+.b-hold.hold .fill { transform: scaleX(1); transition: transform 1.2s linear; }
+.b-hold.hold .tx, .b-hold.done .tx { color: var(--surface); }
+.b-hold.done .fill { transform: scaleX(1); transition: none; background: var(--ok); }
+
+.b-slide { position: relative; width: min(84%, 270px); height: 54px; border-radius: 27px; background: var(--soft); overflow: hidden; user-select: none; -webkit-user-select: none; }
+.b-slide .bar { position: absolute; inset: 0 auto 0 0; width: 54px; background: var(--accent); opacity: .35; border-radius: 27px; }
+.b-slide .lab { position: absolute; inset: 0; display: grid; place-items: center; padding-left: 40px; font-size: 14px; font-weight: 500; background: linear-gradient(100deg, var(--muted) 40%, var(--accent) 50%, var(--muted) 60%) 0 0 / 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: b-shine 2.4s linear infinite; }
+@keyframes b-shine { from { background-position: 100% 0; } to { background-position: -40% 0; } }
+.b-slide .hd { position: absolute; left: 4px; top: 4px; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 20px; cursor: grab; touch-action: none; }
+.b-slide .hd:active { cursor: grabbing; }
+.b-slide.back .hd, .b-slide.back .bar { transition: all .3s cubic-bezier(.3, 1.3, .5, 1); }
+.b-slide.done .lab { animation: none; background: none; color: var(--ok); -webkit-text-fill-color: var(--ok); font-weight: 600; padding-left: 0; }
+.b-sec { padding: 11px 26px; background: var(--soft); color: var(--ink); }
+.b-sec:hover { filter: brightness(.95); transform: translateY(-1px); }
+.b-pair { display: flex; gap: 10px; }
+.b-text { position: relative; border: 0; background: none; padding: 6px 2px; font-size: 16px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.b-text::after { content: ""; position: absolute; left: 0; right: 0; bottom: 2px; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .15s; }
+.b-text:hover::after, .b-text.fill::after { transform: scaleX(1); }
+.b-danger { padding: 13px 30px; font-size: 16px; background: var(--err); color: var(--surface); }
+.b-danger:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.b-danger:active { transform: scale(.96); }
+.b-gh-bg { position: absolute; inset: 0; z-index: -1; background: linear-gradient(135deg, var(--art3), var(--art1) 60%, var(--art2)); }
+.b-gh { padding: 12px 32px; font-size: 16px; background: transparent; color: var(--on-art); box-shadow: inset 0 0 0 1px transparent; transition: background .15s, box-shadow .15s; }
+.b-gh:hover, .b-gh.fill { background: color-mix(in srgb, var(--on-art) 22%, transparent); box-shadow: inset 0 0 0 1.5px var(--on-art); }
+.b-icons { display: flex; align-items: center; gap: 18px; }
+.b-dl { display: inline-flex; align-items: center; gap: 6px; }
+.b-pill { display: inline-flex; gap: 8px; align-items: center; padding: 13px 30px; font-size: 16px; border-radius: 999px; }
+.b-pill i { font-style: normal; transition: transform .15s; }
+.b-pill:hover i { transform: translateX(4px); }
+.b-group button { width: auto; padding: 0 15px; font-size: 14px; white-space: nowrap; }
+.b-split { position: relative; display: inline-flex; align-self: start; margin-top: 44px; }
+.b-split .main { border-radius: 10px 0 0 10px; }
+.b-split .more { border-radius: 0 10px 10px 0; padding: 10px 11px; margin-left: 1px; }
+.b-split .more span { display: inline-block; transition: transform .15s; }
+.on .b-split .more span { transform: rotate(180deg); }
+.b-split ul { position: absolute; top: calc(100% + 6px); right: 0; width: 130px; margin: 0; padding: 5px; list-style: none; background: var(--surface); border-radius: 10px; box-shadow: 0 10px 24px var(--shadow); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .15s, transform .15s, visibility 0s .15s; }
+.on .b-split ul { opacity: 1; visibility: visible; transform: none; transition: opacity .15s, transform .15s; }
+.b-split li button { width: 100%; text-align: left; border: 0; background: none; padding: 5px 9px; border-radius: 7px; cursor: pointer; font-size: 14px; }
+.b-split li button:hover { background: var(--soft); }
+
+.st { padding: 13px 34px; font-size: 16px; }
+.st:hover, .st-h { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 7px 14px var(--shadow); }
+.st:active, .st-a { transform: scale(.94); filter: brightness(.92); box-shadow: none; }
+.st-f { outline: 2.5px solid var(--ink); outline-offset: 3px; }
+.st[disabled] { background: var(--line); color: var(--muted); cursor: not-allowed; transform: none; filter: none; box-shadow: none; }
+
+.b-dark { display: grid; gap: 12px; justify-items: center; }
+.b-prev { width: 200px; padding: 10px 13px; font-size: 13px; border-radius: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); transition: background .2s, color .2s; }
+.b-prev.dark { background: var(--ink); color: var(--bg); }
+
+.f-opts { display: grid; gap: 11px; }
+.f-opt { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.f-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.f-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.f-rd { flex: none; width: 21px; height: 21px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; transition: border-color .15s; }
+.f-rd::after { content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); transform: scale(0); transition: transform .2s cubic-bezier(.2, 1.7, .4, 1); }
+.f-opt input:checked + .f-rd { border-color: var(--accent); }
+.f-opt input:checked + .f-rd::after { transform: none; }
+.f-ck { flex: none; width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.f-ck svg { width: 15px; height: 15px; fill: none; stroke: var(--accent-ink); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .2s; }
+.f-opt input:checked + .f-ck { background: var(--accent); border-color: var(--accent); }
+.f-opt input:checked + .f-ck svg { stroke-dashoffset: 0; }
+.b-save { justify-self: start; margin-top: 3px; }
+
+.b-tg { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; padding-inline: 12px; }
+.b-tg button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; transition: background .15s, color .15s, border-color .15s, transform .1s; }
+.b-tg button:active { transform: scale(.94); }
+.b-tg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.b-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; width: min(90%, 290px); }
+.b-chips button { padding: 3px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; transition: background .15s, color .15s, border-color .15s; }
+.b-chips button::before { content: "✓ "; display: inline-block; width: 0; overflow: hidden; vertical-align: bottom; transition: width .15s; }
+.b-chips button[aria-pressed="true"] { background: var(--soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.b-chips button[aria-pressed="true"]::before { width: 1.05em; }
+.b-step { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.b-step button { width: 44px; height: 44px; border: 0; background: none; font-size: 20px; cursor: pointer; transition: background .15s; }
+.b-step button:hover:not([disabled]) { background: var(--soft); }
+.b-step button[disabled] { color: var(--line); cursor: not-allowed; }
+.b-step output { width: 52px; text-align: center; font: 700 18px var(--mono); font-variant-numeric: tabular-nums; border-inline: 1px solid var(--line); line-height: 44px; }
+.b-step output.pop { animation: b-num .2s; }
+@keyframes b-num { from { transform: translateY(-9px); opacity: 0; } }
+</style>
+<h2 class="group">分清主次</h2>
+<article class="sp" data-name="主按钮" data-en="Primary Button" data-hint="移上去，再按住" data-use="一屏里最该被点的那个，一个区域通常只放一个，比如「提交」。" data-prompt="做一个主按钮：实色橙底，底部 5px 深色实边像一块厚度；鼠标移上去抬起 2px，按下时下沉 4px，过渡 150ms。">
+  <div class="stage"><button class="btn b-primary" type="button">提交</button></div>
+</article>
+<article class="sp" data-name="次按钮" data-en="Secondary Button" data-hint="移上去" data-use="陪在主按钮旁边的备选项，比如「取消」，颜色要退后一步。" data-prompt="在主按钮左边放一个次按钮：浅色底、深色字，比主按钮淡一个层级，悬停时底色略微加深，过渡 150ms。">
+  <div class="stage"><div class="b-pair"><button class="btn b-sec" type="button">取消</button><button class="btn" type="button">提交</button></div></div>
+</article>
+<article class="sp" data-name="线框按钮" data-en="Outline Button" data-demo="outline" data-hint="移上去" data-use="透明底加一圈描边，分量介于次按钮和文字按钮之间。" data-prompt="做一个线框按钮：背景透明、1.5px 描边；鼠标移上去时底色从左向右填满，文字反白，过渡 200ms。">
+  <div class="stage"><button class="btn b-outline" type="button">了解更多</button></div>
+</article>
+<article class="sp" data-name="文字按钮" data-en="Text Button" data-demo="textBtn" data-hint="移上去" data-use="看起来几乎就是一段文字，用在「忘记密码」这类偶尔才点的入口。" data-prompt="做一个文字按钮：没有背景和边框，只有橙色文字；悬停时下划线从左向右长出来，150ms。">
+  <div class="stage"><button class="b-text" type="button">忘记密码？</button></div>
+</article>
+<article class="sp" data-name="幽灵按钮" data-en="Ghost Button" data-demo="ghost" data-hint="移上去" data-use="压在图片或彩色背景上也不抢画面，鼠标过来才现出底色。" data-prompt="做一个幽灵按钮：放在彩色背景上，平时只有文字、背景透明；悬停时才出现半透明底色和细边框，过渡 150ms。">
+  <div class="stage"><div class="b-gh-bg"></div><button class="btn b-gh" type="button">查看详情</button></div>
+</article>
+<article class="sp" data-name="胶囊按钮" data-en="Pill Button" data-hint="移上去" data-use="圆角拉满，观感柔和，手机界面和标签样式里很常见。" data-prompt="做一个胶囊按钮：圆角 999px，两头完全圆润，文字后面带箭头，悬停时箭头向右移动 4px，150ms。">
+  <div class="stage"><button class="btn b-pill" type="button">立即试听<i>→</i></button></div>
+</article>
+<h2 class="group">防止手滑</h2>
+<article class="sp" data-name="危险按钮" data-en="Danger Button" data-hint="移上去，再按住" data-use="删除、注销这种做了就撤不回的动作，用红色提醒用户看清楚。" data-prompt="做一个危险按钮：红底白字，用于删除操作；悬停时变亮，按下缩到 96%，点击后要再弹一次确认。">
+  <div class="stage"><button class="btn b-danger" type="button">删除课程</button></div>
+</article>
+<article class="sp" data-name="长按确认按钮" data-en="Press and Hold" data-demo="hold" data-hint="按住 1.2 秒" data-use="删除、清空这类手滑会后悔的操作。比弹窗确认更快，也不容易误触。" data-prompt="做一个长按确认按钮：按住时红色从左向右填满，1.2 秒填满后才执行；中途松手就退回去，不执行。">
+  <div class="stage"><button class="btn b-hold" type="button"><span class="fill"></span><span class="tx">按住删除作业</span></button></div>
+</article>
+<article class="sp" data-name="滑动确认" data-en="Slide to Confirm" data-demo="slide" data-hint="拖动圆钮到最右" data-use="付款、解锁这类要用户明确同意的动作。手机上单手就能完成。" data-prompt="做一个滑动确认条：拖动圆钮向右，提示文字有光扫过；拖过 85% 判定成功并变绿，没到就回弹到起点。">
+  <div class="stage"><div class="b-slide"><span class="bar"></span><span class="lab">向右滑动，确认付款</span><button class="hd" type="button" aria-label="拖动确认，也可以按回车">→</button></div></div>
+</article>
+<h2 class="group">一处放多个操作</h2>
+<article class="sp" data-name="图标按钮" data-en="Icon Button" data-demo="like" data-hint="点爱心" data-use="收藏、下载这类看图标就明白的动作，占地很小。" data-prompt="做一个图标按钮：圆形底的爱心，点击后变实心并弹一下，向四周炸开 6 个小圆点；旁边放一个带文字的下载图标按钮作对比。">
+  <div class="stage"><div class="b-icons"><div class="b-like"><button class="b-heart" type="button" aria-label="点赞" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 20.5s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9.5c0 6-8 11-8 11z"/></svg><i></i><i></i><i></i><i></i><i></i><i></i></button><output>128</output></div><button class="btn line b-dl" type="button">↓ 下载</button></div></div>
+</article>
+<article class="sp" data-name="按钮组" data-en="Button Group" data-hint="按一下试试" data-use="几个有关联的动作拼成一整条，比如上一页、今天、下一页。" data-prompt="做一个按钮组：「上一页、今天、下一页」三个按钮紧挨成一排、共用外框，中间用细线隔开，按下时缩到 92%。">
+  <div class="stage"><div class="b-group" role="group" aria-label="翻页"><button type="button">上一页</button><button type="button">今天</button><button type="button">下一页</button></div></div>
+</article>
+<article class="sp" data-name="分割按钮" data-en="Split Button" data-auto data-hint="点右边小箭头" data-use="左半边直接执行常用动作，右半边的箭头收着其他选择。" data-prompt="做一个分割按钮：左侧是「保存」主操作，右侧隔一条细线放小箭头；点箭头展开「另存为、存为模板」菜单，箭头旋转 180 度。">
+  <div class="stage"><div class="b-split"><button class="btn main" type="button">保存</button><button class="btn more" type="button" data-toggle aria-label="更多保存方式"><span>▾</span></button><ul><li><button type="button" data-close>另存为</button></li><li><button type="button" data-close>存为模板</button></li></ul></div></div>
+</article>
+<article class="sp" data-name="悬浮按钮" data-en="Floating Action Button" data-auto data-hint="点圆按钮" data-use="悬在页面角落不随内容滚走，留给发布这种最常用的动作。" data-prompt="做一个右下角悬浮按钮（FAB）：点击后加号旋转 135 度变成叉，向上依次弹出 3 个带文字的小按钮，每个延迟 55ms。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="b-fab-box">
+      <button class="b-act" style="--i:2" type="button">写笔记</button>
+      <button class="b-act" style="--i:1" type="button">传图片</button>
+      <button class="b-act" style="--i:0" type="button">发视频</button>
+      <button class="b-fab" type="button" data-toggle aria-label="展开操作"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></button>
+    </div></div>
+</article>
+<h2 class="group">让按钮有反应</h2>
+<article class="sp" data-name="默认状态" data-en="Default" data-use="按钮没被碰时的样子。这张卡里的按钮可以直接操作，试一遍后面几种状态。" data-prompt="这个按钮要有完整的状态：默认、悬停、按下、焦点、加载与成功、禁用，每种状态样式都不一样。">
+  <div class="stage"><button class="btn st" type="button">提交作业</button></div>
+</article>
+<article class="sp" data-name="悬停状态" data-en="Hover" data-use="光标一到就有变化，告诉用户这里能点。卡片里把这个瞬间定住了。" data-prompt="按钮悬停时：上浮 2px、亮度提高 10%、阴影变深，过渡 150ms。">
+  <div class="stage"><button class="btn st st-h" type="button">提交作业</button></div>
+</article>
+<article class="sp" data-name="按下状态" data-en="Active / Pressed" data-use="手指或鼠标按住的那一下会往里收，让人觉得真的按到了。卡片里同样定住了。" data-prompt="按钮按下时：缩小到 94%、颜色变暗、阴影消失，100ms 内完成，松手弹回。">
+  <div class="stage"><button class="btn st st-a" type="button">提交作业</button></div>
+</article>
+<article class="sp" data-name="焦点状态" data-en="Focus" data-use="用 Tab 键走到这里时亮起的外框，只用键盘的人靠它知道自己在哪。" data-prompt="按钮加键盘焦点样式：用 :focus-visible，按 Tab 选中时出现 2.5px 外框并留 3px 间距，鼠标点击时不显示。">
+  <div class="stage"><button class="btn st st-f" type="button">提交作业</button></div>
+</article>
+<article class="sp" data-name="加载与成功状态" data-en="Loading & Success" data-demo="loading" data-hint="点击" data-use="等结果时转圈、不让再点，结果回来后换成对勾。" data-prompt="做加载与成功状态：点击后按钮收缩成圆形并转圈，期间禁止再次点击；完成后变绿并画出对勾，1.5 秒后恢复。">
+  <div class="stage"><button class="btn b-load" type="button"><span class="tx">提交作业</span><span class="sp-i"></span><svg class="ok-i" viewBox="0 0 24 24"><path pathLength="1" d="M5 13l5 5 9-11"/></svg></button></div>
+</article>
+<article class="sp" data-name="禁用状态" data-en="Disabled" data-use="暂时不能点，颜色发灰，最好再写明差什么条件。" data-prompt="按钮禁用时：灰底灰字、鼠标变成禁止符号、不响应点击和悬停；旁边用一句话说明还差什么条件。">
+  <div class="stage"><div style="display:grid;gap:9px;justify-items:center"><button class="btn st" type="button" disabled>提交作业</button><span style="font-size:13px;color:var(--muted)">先把必填项填完</span></div></div>
+</article>
+<article class="sp" data-name="涟漪按钮" data-en="Ripple Button" data-demo="ripple" data-hint="点任意位置" data-use="让用户确认「点到了」，手机上尤其有用。水波从手指落点散开。" data-prompt="做一个涟漪按钮：点击时从手指落点散开一圈半透明水波，750ms 内放大并淡出，水波不能溢出按钮边界。">
+  <div class="stage"><button class="btn b-ripple" type="button">点我试试</button></div>
+</article>
+<h2 class="group">让用户做选择</h2>
+<article class="sp" data-name="开关" data-en="Switch" data-demo="switch" data-hint="拨一下" data-use="一拨就生效，不需要「保存」，深色模式这种设置正合适。" data-prompt="做一个开关：圆形滑块在轨道上滑动，开启后轨道变橙色，按住时滑块拉长；拨动后设置立刻生效，不需要保存按钮。">
+  <div class="stage"><div class="b-dark"><label class="b-sw" for="b-sw1"><input id="b-sw1" type="checkbox"><span class="b-track"><span class="b-knob"></span></span>深色模式</label><div class="b-prev">这块预览立刻跟着变</div></div></div>
+</article>
+<article class="sp" data-name="切换按钮" data-en="Toggle Button" data-demo="toggles" data-hint="点一下，再点一下" data-use="只有开和关两种样子，点赞、收藏都是这个逻辑。" data-prompt="做一组切换按钮：点赞、收藏、关注，点一下变成高亮实色并保持，再点恢复原样，过渡 150ms。">
+  <div class="stage"><div class="b-tg"><button type="button" aria-pressed="true">♥ 点赞</button><button type="button" aria-pressed="false">★ 收藏</button><button type="button" aria-pressed="false">＋ 关注</button></div></div>
+</article>
+<article class="sp" data-name="复选框" data-en="Checkbox" data-demo="checks" data-hint="勾选后点保存" data-use="可以勾好几个，一般等点了保存才算数。" data-prompt="做一组复选框：选中时底色变橙，白色对勾用 SVG 描边画出来；改动后下方「保存」按钮才可点，点击后才算生效。">
+  <div class="stage"><div class="f-opts"><label class="f-opt"><input type="checkbox" id="f-c1" checked><span class="f-ck"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 13l5 5 9-11"/></svg></span>上课提醒</label><label class="f-opt"><input type="checkbox" id="f-c2"><span class="f-ck"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 13l5 5 9-11"/></svg></span>作业提醒</label><label class="f-opt"><input type="checkbox" id="f-c3"><span class="f-ck"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 13l5 5 9-11"/></svg></span>直播提醒</label><button class="btn sm b-save" type="button" disabled>保存</button></div></div>
+</article>
+<article class="sp" data-name="单选框" data-en="Radio" data-hint="点选项" data-use="一组里只留一个，选中新的，旧的跟着取消。" data-prompt="做一组单选框：自定义圆形外圈，选中时内部圆点从 0 弹到满尺寸，略带过冲，200ms；整行都可点击，只能选一个。">
+  <div class="stage"><fieldset class="f-opts" style="border:0;margin:0;padding:0"><legend style="padding:0;margin-bottom:9px;font-size:13px;color:var(--muted)">上课方式</legend><label class="f-opt"><input type="radio" id="f-r1" name="f-r" checked><span class="f-rd"></span>线下工作坊</label><label class="f-opt"><input type="radio" id="f-r2" name="f-r"><span class="f-rd"></span>线上直播</label><label class="f-opt"><input type="radio" id="f-r3" name="f-r"><span class="f-rd"></span>录播自学</label></fieldset></div>
+</article>
+<article class="sp" data-name="可选标签" data-en="Chip" data-demo="chips" data-hint="点标签筛选" data-use="小胶囊排成一行，点一下选中，再点取消，筛选时常用。" data-prompt="做一排可选标签（Chip）：圆角胶囊，点击选中后描边变橙并在文字前长出对勾，可多选，用于筛选列表。">
+  <div class="stage"><div class="b-chips"><button type="button" aria-pressed="true">入门</button><button type="button" aria-pressed="false">进阶</button><button type="button" aria-pressed="false">实战</button><button type="button" aria-pressed="true">直播</button><button type="button" aria-pressed="false">录播</button><button type="button" aria-pressed="false">工作坊</button></div></div>
+</article>
+<article class="sp" data-name="分段控制器" data-en="Segmented Control" data-demo="segment" data-hint="点选项" data-use="两三个互斥选项挤在一条里，一个色块滑到当前项，很省地方。" data-prompt="做一个分段控制器：三个选项放在一条浅色胶囊里，选中的底色块滑到对应位置，过渡 200ms 略带回弹。">
+  <div class="stage"><div class="b-seg"><span class="pill"></span><button type="button" aria-pressed="true">日</button><button type="button" aria-pressed="false">周</button><button type="button" aria-pressed="false">月度</button></div></div>
+</article>
+<article class="sp" data-name="计数器" data-en="Stepper" data-demo="stepper" data-hint="点加减" data-use="加减号夹着一个数字，改购物车件数就用它。" data-prompt="做一个计数器（Stepper）：左右是加减按钮，夹着当前数字，数字变化时轻轻滚入；减到 1 时减号变灰禁用，上限 9。">
+  <div class="stage"><div class="b-step"><button type="button" aria-label="减少">−</button><output>2</output><button type="button" aria-label="增加">+</button></div></div>
+</article>
+<script>
+demo.outline = (stage, U) => {
+  const b = stage.querySelector('.b-outline');
+  U.auto(stage, () => b.classList.toggle('fill'), 1700);
+  stage.addEventListener('pointerdown', () => b.classList.remove('fill'));
+};
+demo.ripple = (stage, U) => {
+  const b = stage.querySelector('.b-ripple');
+  const add = (x, y) => {
+    const s = document.createElement('span');
+    s.style.left = x + 'px'; s.style.top = y + 'px';
+    b.appendChild(s);
+    s.addEventListener('animationend', () => s.remove());
+  };
+  b.addEventListener('pointerdown', (e) => { const r = b.getBoundingClientRect(); add(e.clientX - r.left, e.clientY - r.top); });
+  U.auto(stage, () => add(b.offsetWidth * (.25 + Math.random() * .5), b.offsetHeight / 2), 2000);
+};
+demo.loading = (stage, U) => {
+  const b = stage.querySelector('.b-load');
+  const run = () => {
+    if (b.classList.contains('busy') || b.classList.contains('done')) return;
+    b.classList.add('busy');
+    setTimeout(() => {
+      b.classList.replace('busy', 'done');
+      setTimeout(() => b.classList.remove('done'), 1500);
+    }, 1500);
+  };
+  b.addEventListener('click', run);
+  U.auto(stage, run, 5000);
+  stage.addEventListener('inview', run);
+};
+demo.like = (stage, U) => {
+  const b = stage.querySelector('.b-heart');
+  const out = stage.querySelector('output');
+  const toggle = () => {
+    const on = b.classList.toggle('liked');
+    b.setAttribute('aria-pressed', String(on));
+    out.textContent = on ? 129 : 128;
+  };
+  b.addEventListener('click', toggle);
+  U.auto(stage, toggle, 2400);
+};
+demo.segment = (stage, U) => {
+  const btns = [...stage.querySelectorAll('button')];
+  const pill = stage.querySelector('.pill');
+  const pick = (b) => {
+    btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    pill.style.width = b.offsetWidth + 'px';
+    pill.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+  };
+  pick(btns[0]);
+  btns.forEach((b) => b.addEventListener('click', () => pick(b)));
+  let i = 0;
+  U.auto(stage, () => { i = (i + 1) % btns.length; pick(btns[i]); }, 1500);
+};
+demo.hold = (stage) => {
+  const b = stage.querySelector('.b-hold');
+  const tx = b.querySelector('.tx');
+  let timer;
+  const start = () => {
+    if (b.classList.contains('done')) return;
+    b.classList.add('hold');
+    timer = setTimeout(() => {
+      b.classList.remove('hold'); b.classList.add('done'); tx.textContent = '已删除';
+      setTimeout(() => { b.classList.remove('done'); tx.textContent = '按住删除作业'; }, 1600);
+    }, 1200);
+  };
+  const stop = () => { clearTimeout(timer); b.classList.remove('hold'); };
+  b.addEventListener('pointerdown', start);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((n) => b.addEventListener(n, stop));
+  b.addEventListener('keydown', (e) => { if (e.key === ' ' && !e.repeat) { e.preventDefault(); start(); } });
+  b.addEventListener('keyup', (e) => { if (e.key === ' ') stop(); });
+};
+demo.slide = (stage, U) => {
+  const box = stage.querySelector('.b-slide');
+  const hd = box.querySelector('.hd');
+  const bar = box.querySelector('.bar');
+  const lab = box.querySelector('.lab');
+  const label = lab.textContent;
+  const max = () => box.clientWidth - hd.offsetWidth - 8;
+  const set = (x) => { hd.style.left = (4 + x) + 'px'; bar.style.width = (x + 54) + 'px'; };
+  const reset = () => { box.classList.add('back'); box.classList.remove('done'); lab.textContent = label; hd.textContent = '→'; set(0); };
+  const finish = () => {
+    box.classList.add('back', 'done'); set(max()); lab.textContent = '已确认'; hd.textContent = '✓';
+    setTimeout(reset, 1800);
+  };
+  let from = null;
+  hd.addEventListener('pointerdown', (e) => { if (box.classList.contains('done')) return; from = e.clientX; hd.setPointerCapture(e.pointerId); box.classList.remove('back'); });
+  hd.addEventListener('pointermove', (e) => { if (from !== null) set(Math.max(0, Math.min(max(), e.clientX - from))); });
+  hd.addEventListener('pointerup', (e) => {
+    if (from === null) return;
+    const dragged = e.clientX - from; from = null;
+    if (dragged > max() * .85) finish(); else reset();
+  });
+  hd.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(); } });
+  U.auto(stage, () => {
+    box.classList.remove('back');
+    U.tween(1000, (p) => set(max() * .92 * U.easeOut(p)), finish);
+  }, 5200);
+};
+demo.textBtn = (stage, U) => {
+  const b = stage.querySelector('.b-text');
+  U.auto(stage, () => b.classList.toggle('fill'), 1500);
+};
+demo.ghost = (stage, U) => {
+  const b = stage.querySelector('.b-gh');
+  U.auto(stage, () => b.classList.toggle('fill'), 1500);
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; b.classList.remove('fill'); });
+};
+demo.switch = (stage, U) => {
+  const input = stage.querySelector('input');
+  const prev = stage.querySelector('.b-prev');
+  const apply = () => prev.classList.toggle('dark', input.checked);
+  input.addEventListener('change', apply);
+  U.auto(stage, () => { input.checked = !input.checked; apply(); }, 1800);
+};
+demo.checks = (stage) => {
+  const save = stage.querySelector('.b-save');
+  stage.querySelectorAll('input').forEach((i) => i.addEventListener('change', () => { save.disabled = false; save.textContent = '保存'; }));
+  save.addEventListener('click', () => { save.disabled = true; save.textContent = '已保存'; });
+};
+demo.toggles = (stage, U) => {
+  const btns = [...stage.querySelectorAll('button')];
+  const flip = (b) => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+  btns.forEach((b) => b.addEventListener('click', () => flip(b)));
+  let i = 1;
+  U.auto(stage, () => { flip(btns[i]); i = (i + 1) % btns.length; }, 1400);
+};
+demo.chips = (stage) => {
+  stage.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'))));
+};
+demo.stepper = (stage) => {
+  const [minus, plus] = stage.querySelectorAll('button');
+  const out = stage.querySelector('output');
+  const MIN = 1, MAX = 9;
+  let n = 2;
+  const set = (v) => {
+    n = Math.max(MIN, Math.min(MAX, v));
+    out.textContent = n;
+    out.classList.remove('pop'); void out.offsetWidth; out.classList.add('pop');
+    minus.disabled = n === MIN;
+    plus.disabled = n === MAX;
+  };
+  minus.addEventListener('click', () => set(n - 1));
+  plus.addEventListener('click', () => set(n + 1));
+};
+</script>

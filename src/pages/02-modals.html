@@ -1,0 +1,225 @@
+<style>
+.mask { position: absolute; inset: 0; z-index: 5; background: var(--scrim); opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s .25s; }
+.on .mask { opacity: 1; visibility: visible; transition: opacity .25s; }
+.pop { position: absolute; z-index: 6; background: var(--surface); box-shadow: 0 14px 30px var(--shadow); visibility: hidden; }
+.on .pop { visibility: visible; }
+.m-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+.m-text { margin: 0; font-size: 13px; color: var(--muted); }
+.m-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.btn.danger { background: var(--err); color: var(--surface); }
+
+.m-dialog { left: 50%; top: 50%; width: min(84%, 260px); padding: 15px 16px; border-radius: 14px; opacity: 0; transform: translate(-50%, -50%) scale(.86); transition: transform .3s cubic-bezier(.2, 1.35, .4, 1), opacity .2s, visibility 0s .3s; }
+.on .m-dialog { opacity: 1; transform: translate(-50%, -50%); transition: transform .3s cubic-bezier(.2, 1.35, .4, 1), opacity .2s; }
+.m-dialog.shake { animation: m-shake .4s; }
+@keyframes m-shake { 20% { translate: -7px; } 40% { translate: 6px; } 60% { translate: -4px; } 80% { translate: 3px; } }
+.m-warn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--soft); color: var(--err); font-weight: 800; margin-bottom: 7px; }
+
+.m-drawer { top: 0; right: 0; bottom: 0; width: 66%; padding: 14px; border-radius: 14px 0 0 14px; transform: translateX(105%); transition: transform .3s cubic-bezier(.2, .9, .3, 1), visibility 0s .3s; display: grid; align-content: start; gap: 9px; }
+.on .m-drawer { transform: none; transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
+.m-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.m-chips span { font-size: 12px; padding: 1px 9px; border-radius: 12px; background: var(--soft); }
+
+.m-sheet { left: 0; right: 0; bottom: 0; padding: 8px 16px 16px; border-radius: 16px 16px 0 0; transform: translateY(105%); transition: transform .3s cubic-bezier(.2, .9, .3, 1), visibility 0s .3s; }
+.on .m-sheet { transform: none; transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
+[data-name="底部弹层"] .hint { bottom: auto; top: 7px; }
+.m-grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 10px; }
+.m-share { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 12px; }
+.m-share button { display: grid; justify-items: center; gap: 3px; border: 0; background: none; cursor: pointer; padding: 0; }
+.m-share i { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(145deg, var(--art3), var(--art1)); }
+.m-share button:nth-child(2) i { background: linear-gradient(145deg, var(--art1), var(--art2)); }
+.m-share button:nth-child(3) i { background: var(--soft); }
+.m-share button:nth-child(4) i { background: var(--accent-deep); }
+
+.m-toasts { position: absolute; top: 12px; left: 0; right: 0; z-index: 8; display: grid; justify-items: center; gap: 6px; pointer-events: none; }
+.m-toast { display: flex; gap: 7px; align-items: center; padding: 6px 14px; border-radius: 18px; background: var(--ink); color: var(--bg); font-size: 13px; box-shadow: 0 6px 14px var(--shadow); animation: m-t-in .3s cubic-bezier(.2, 1.3, .4, 1), m-t-out .25s 2s forwards; }
+@keyframes m-t-in { from { opacity: 0; transform: translateY(-16px) scale(.9); } }
+@keyframes m-t-out { to { opacity: 0; transform: translateY(-10px); } }
+
+.m-notice { position: absolute; top: 12px; right: 12px; z-index: 8; width: min(80%, 240px); padding: 10px 12px 12px; border-radius: 12px; background: var(--surface); box-shadow: 0 10px 24px var(--shadow); overflow: hidden; animation: m-n-in .35s cubic-bezier(.2, 1, .3, 1); }
+.m-notice.out { transition: transform .25s, opacity .25s; transform: translateX(110%); opacity: 0; }
+@keyframes m-n-in { from { transform: translateX(110%); } }
+.m-notice button { position: absolute; top: 5px; right: 6px; border: 0; background: none; cursor: pointer; font-size: 15px; color: var(--muted); line-height: 1; padding: 3px; }
+.m-notice .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent); transform-origin: left; animation: m-bar 6s linear forwards; }
+@keyframes m-bar { to { transform: scaleX(0); } }
+
+.m-pv { position: relative; }
+.m-popover { left: 50%; bottom: calc(100% + 11px); width: 190px; padding: 11px 13px; border-radius: 11px; opacity: 0; transform: translateX(-50%) scale(.8); transform-origin: 50% 100%; transition: transform .2s cubic-bezier(.2, 1.4, .4, 1), opacity .15s, visibility 0s .2s; }
+.m-popover::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 11px; height: 11px; margin-left: -5.5px; background: var(--surface); transform: rotate(45deg); }
+.on .m-popover { opacity: 1; transform: translateX(-50%); transition: transform .2s cubic-bezier(.2, 1.4, .4, 1), opacity .15s; }
+.m-who { display: flex; gap: 9px; align-items: center; }
+.m-who i { flex: none; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(145deg, var(--art3), var(--art2)); }
+
+.m-tips { display: flex; gap: 14px; }
+.m-tt { position: relative; }
+.m-tt button { width: 44px; height: 44px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 18px; }
+.m-tip { position: absolute; left: 50%; bottom: calc(100% + 9px); padding: 3px 9px; font-size: 12px; white-space: nowrap; border-radius: 6px; background: var(--ink); color: var(--bg); opacity: 0; transform: translate(-50%, 5px); pointer-events: none; transition: opacity .15s, transform .15s; }
+.m-tip::after { content: ""; position: absolute; left: 50%; bottom: -3px; width: 8px; height: 8px; margin-left: -4px; background: var(--ink); transform: rotate(45deg); }
+.m-tt:hover .m-tip, .m-tt:focus-within .m-tip, .m-tt.show .m-tip { opacity: 1; transform: translate(-50%, 0); }
+
+.m-dd { position: relative; align-self: start; margin-top: 26px; }
+.m-dd .chev { display: inline-block; margin-left: 5px; transition: transform .2s; }
+.on .m-dd .chev { transform: rotate(180deg); }
+.m-menu { left: 0; top: calc(100% + 6px); width: 150px; padding: 5px; margin: 0; list-style: none; border-radius: 11px; opacity: 0; transform: translateY(-6px); transition: opacity .15s, transform .15s, visibility 0s .15s; }
+.on .m-menu { opacity: 1; transform: none; transition: opacity .15s, transform .15s; }
+.m-menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 5px 9px; border-radius: 7px; cursor: pointer; font-size: 14px; }
+.m-menu button:hover, .m-menu button:focus-visible { background: var(--soft); }
+.m-menu li { opacity: 0; transform: translateY(-5px); }
+.on .m-menu li { opacity: 1; transform: none; transition: opacity .2s, transform .2s; transition-delay: calc(var(--i) * 45ms); }
+.m-menu .del { color: var(--err); }
+
+.m-thumbs { display: flex; gap: 9px; }
+.m-thumbs button { width: 84px; height: 84px; border: 0; padding: 0; border-radius: 10px; cursor: zoom-in; }
+.m-art1 { background: linear-gradient(160deg, var(--art3), var(--art1) 60%, var(--art2)); }
+.m-art2 { background: radial-gradient(circle at 30% 30%, var(--art3) 18%, transparent 19%), linear-gradient(200deg, var(--art1), var(--art2)); }
+.m-art3 { background: linear-gradient(158deg, transparent 62%, var(--art2) 62.5%), linear-gradient(204deg, transparent 48%, var(--art1) 48.5%), linear-gradient(var(--art3), var(--art3)); }
+.m-lb { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; visibility: hidden; background: transparent; transition: background .3s, visibility 0s .3s; cursor: zoom-out; }
+.on .m-lb { visibility: visible; background: var(--scrim); transition: background .3s; }
+.m-lb-img { width: 72%; height: 78%; border-radius: 12px; display: grid; align-items: end; color: var(--on-art); padding: 7px 11px; font-size: 13px; transform-origin: 0 0; box-shadow: 0 14px 34px var(--shadow); }
+.m-lb-img span { opacity: 0; transition: opacity .2s .2s; }
+.on .m-lb-img span { opacity: 1; }
+.m-x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; cursor: pointer; font-size: 16px; line-height: 1; color: var(--muted); }
+.m-x:hover { background: var(--soft); color: var(--ink); }
+.m-del-row { display: flex; align-items: center; gap: 20px; padding: 8px 13px; background: var(--surface); border-radius: 10px; box-shadow: 0 2px 8px var(--shadow); font-size: 14px; margin-top: 66px; }
+.m-del-row .m-pv button.link { border: 0; background: none; color: var(--err); cursor: pointer; font-size: 14px; padding: 2px 4px; }
+.m-pc { width: 178px; }
+.m-pc .m-row { margin-top: 8px; }
+</style>
+<div class="advice"><b>怎么选</b><ul><li>不处理就不能继续：用<strong>弹窗</strong></li><li>要对照页面操作：用<strong>抽屉</strong></li><li>扫一眼就够：用<strong>轻提示</strong></li><li>解释一个图标：用<strong>气泡提示</strong></li></ul></div>
+<h2 class="group">必须先处理</h2>
+<article class="sp" data-name="弹窗" data-en="Modal" data-auto data-hint="点叉、遮罩或按 Esc 关闭" data-use="压在页面正中，背后整页变暗。能用叉、遮罩或 Esc 键退出。" data-prompt="做一个模态弹窗（Modal）：屏幕居中，背后加半透明遮罩，弹窗从 86% 放大到 100% 略带回弹，300ms；点右上角叉、点遮罩或按 Esc 都能关闭。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn" type="button" data-open>保存草稿</button>
+    <div class="mask" data-close></div>
+    <div class="pop m-dialog" role="dialog" aria-label="保存草稿"><button class="m-x" type="button" data-close aria-label="关闭">×</button><p class="m-title">要保存这份草稿吗？</p><p class="m-text">不保存的话，刚才写的内容会丢失。</p><div class="m-row"><button class="btn line sm" type="button" data-close>不保存</button><button class="btn sm" type="button" data-close>保存</button></div></div></div>
+</article>
+<article class="sp" data-name="确认弹窗" data-en="Alert Dialog" data-auto data-demo="confirm" data-hint="点遮罩试试：它会抖" data-use="动手前再问一遍，点遮罩也关不掉，非选一个不可。" data-prompt="做一个确认弹窗（Alert Dialog）：询问「确定删除吗」，带红色确认按钮；点遮罩不关闭，而是让弹窗左右抖动，用户必须选一个才能继续。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn" type="button" data-open>删除课程</button>
+    <div class="mask"></div>
+    <div class="pop m-dialog" role="alertdialog" aria-label="确认删除"><div class="m-warn">!</div><p class="m-title">确定删除「第 3 讲」？</p><p class="m-text">删除后 32 位学员将看不到这一讲。</p><div class="m-row"><button class="btn line sm" type="button" data-close>取消</button><button class="btn danger sm" type="button" data-close>删除</button></div></div></div>
+</article>
+<article class="sp" data-name="气泡确认框" data-en="Popover Confirm" data-auto data-hint="点「删除」开关" data-use="贴着按钮问一句「确定吗」，不遮挡整个页面，适合风险不大的操作。" data-prompt="做一个气泡确认框（Popover Confirm）：点列表行的「删除」时，在按钮上方冒出小气泡问「确定删除？」，带取消和确认两个小按钮，不遮挡整个页面。">
+  <div class="stage"><div class="m-del-row"><span>第 3 讲作业</span><div class="m-pv"><button class="link" type="button" data-toggle>删除</button>
+    <div class="pop m-popover m-pc"><p class="m-title" style="font-size:14px">确定删除？</p><div class="m-row"><button class="btn line sm" type="button" data-close>取消</button><button class="btn danger sm" type="button" data-close>删除</button></div></div></div></div></div>
+</article>
+<h2 class="group">展开更多内容</h2>
+<article class="sp" data-name="抽屉" data-en="Drawer" data-auto data-hint="点叉关闭" data-use="从一侧推出来的长面板，背后页面还在，适合对照着内容做设置。" data-prompt="做一个右侧抽屉（Drawer）：从右边滑入，占三分之二宽度，300ms；不压暗背后页面，用户可以边看页面边操作抽屉，右上角有叉关闭。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn sm" type="button" data-open style="justify-self:start;margin-left:14px">筛选</button>
+    <aside class="pop m-drawer"><button class="m-x" type="button" data-close aria-label="关闭">×</button><p class="m-title">筛选课程</p><p class="m-text">难度</p><div class="m-chips"><span>入门</span><span>进阶</span><span>实战</span></div><p class="m-text">时长</p><div class="m-chips"><span>10 分钟内</span><span>半小时</span></div><button class="btn sm" type="button" data-close>应用筛选</button></aside></div>
+</article>
+<article class="sp" data-name="底部弹层" data-en="Bottom Sheet" data-auto data-hint="点遮罩关闭" data-use="贴着手机屏幕底边升起来，大拇指够得着。" data-prompt="做一个底部弹层（Bottom Sheet）：从屏幕底部滑上来，顶部圆角加一条小横杠，里面放 4 个分享入口，300ms，点遮罩收回。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn" type="button" data-open style="margin-bottom:60px">分享</button>
+    <div class="mask" data-close></div>
+    <div class="pop m-sheet"><div class="m-grab"></div><div class="m-share"><button type="button" data-close><i></i>好友</button><button type="button" data-close><i></i>朋友圈</button><button type="button" data-close><i></i>复制链接</button><button type="button" data-close><i></i>海报</button></div></div></div>
+</article>
+<article class="sp" data-name="下拉菜单" data-en="Dropdown Menu" data-auto data-hint="点按钮开关" data-use="按钮底下展开一串命令，把不常用的动作收起来。" data-prompt="做一个下拉菜单（Dropdown Menu）：点按钮展开，箭头旋转 180 度，菜单项依次淡入，每项延迟 45ms；危险操作放最后并标红。">
+  <div class="stage"><div class="m-dd"><button class="btn line" type="button" data-toggle>设置<span class="chev">▾</span></button>
+    <ul class="pop m-menu"><li style="--i:0"><button type="button" data-close>账号资料</button></li><li style="--i:1"><button type="button" data-close>通知设置</button></li><li style="--i:2"><button type="button" data-close>隐私</button></li><li style="--i:3"><button class="del" type="button" data-close>退出登录</button></li></ul></div></div>
+</article>
+<article class="sp" data-name="气泡卡片" data-en="Popover" data-auto data-hint="点按钮开关" data-use="点了才出来的小卡片，放得下头像、文字，还能放按钮。" data-prompt="做一个气泡卡片（Popover）：点击按钮后在上方出现带小三角的卡片，从三角位置放大出现，200ms；卡片里放头像、文字和一个按钮，再点关闭。">
+  <div class="stage"><div class="m-pv" style="margin-top:100px"><button class="btn line" type="button" data-toggle>主讲老师</button>
+    <div class="pop m-popover"><div class="m-who"><i></i><div><p class="m-title" style="margin:0;font-size:14px">林老师</p><p class="m-text" style="font-size:12px">教了 6 年 AI 工具课</p></div></div><div class="m-row" style="margin-top:8px"><button class="btn sm" type="button" data-close>关注</button></div></div></div></div>
+</article>
+<article class="sp" data-name="灯箱" data-en="Lightbox" data-demo="lightbox" data-hint="点小图放大，再点收回" data-use="看大图。图片从原来的位置放大出来，用户知道它从哪来、回哪去。" data-prompt="做一个图片灯箱：点缩略图时，图片从缩略图原位放大到屏幕中央（用 FLIP 动画），背景压暗，再点一下收回原位。">
+  <div class="stage"><div class="m-thumbs"><button class="m-art1" type="button" aria-label="查看第 1 张"></button><button class="m-art2" type="button" aria-label="查看第 2 张"></button><button class="m-art3" type="button" aria-label="查看第 3 张"></button></div>
+    <div class="m-lb"><div class="m-lb-img"><span>第 1 张 · 示例图</span></div></div></div>
+</article>
+<h2 class="group">提醒一下就走</h2>
+<article class="sp" data-name="轻提示" data-en="Toast" data-demo="toast" data-hint="点按钮连按几次" data-use="一句话的回执，比如「已保存」，停一两秒就走，不需要用户动手。" data-prompt="做一个 Toast 轻提示：顶部居中的深色胶囊，从上方滑入，2 秒后淡出自动消失；连续触发时多条依次向下堆叠。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="m-toasts"></div>
+    <button class="btn" type="button">保存修改</button></div>
+</article>
+<article class="sp" data-name="通知" data-en="Notification" data-demo="notice" data-hint="点按钮发一条" data-use="比轻提示块头大、留得久，有标题和关闭按钮，用于不能错过的消息。" data-prompt="做一个右上角通知（Notification）：从右侧滑入，含标题、正文和关闭按钮，停留 6 秒，底部细进度条走完后滑出。">
+  <div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn" type="button" style="margin-top:96px">发一条通知</button></div>
+</article>
+<article class="sp" data-name="气泡提示" data-en="Tooltip" data-demo="tips" data-hint="移到图标上" data-use="光标停在图标上时冒出一句解释，内容只作补充，重要的话别放这里。" data-prompt="做一个气泡提示（Tooltip）：鼠标移到图标上时，上方出现深色小标签带三角，淡入并上移 5px，150ms；键盘聚焦时也要显示。">
+  <div class="stage"><div class="m-tips"><div class="m-tt"><button type="button" aria-label="收藏">☆</button><span class="m-tip">收藏这节课</span></div><div class="m-tt"><button type="button" aria-label="分享">↗</button><span class="m-tip">分享给朋友</span></div><div class="m-tt"><button type="button" aria-label="下载">↓</button><span class="m-tip">下载课件</span></div></div></div>
+</article>
+<script>
+demo.confirm = (stage) => {
+  const dlg = stage.querySelector('.m-dialog');
+  stage.querySelector('.mask').addEventListener('click', () => {
+    dlg.classList.remove('shake');
+    void dlg.offsetWidth;
+    dlg.classList.add('shake');
+  });
+};
+demo.toast = (stage, U) => {
+  const box = stage.querySelector('.m-toasts');
+  const msgs = ['修改已保存', '已同步到手机', '已通知 3 位学员'];
+  let i = 0;
+  const push = () => {
+    const t = document.createElement('div');
+    t.className = 'm-toast';
+    t.setAttribute('role', 'status');
+    t.innerHTML = '<b>✓</b>';
+    t.append(msgs[i++ % msgs.length]);
+    box.appendChild(t);
+    t.addEventListener('animationend', (e) => { if (e.animationName === 'm-t-out') t.remove(); });
+    while (box.children.length > 3) box.firstChild.remove();
+  };
+  stage.querySelector('.btn').addEventListener('click', push);
+  U.auto(stage, push, 2800);
+  stage.addEventListener('inview', push);
+};
+demo.notice = (stage, U) => {
+  const push = () => {
+    const old = stage.querySelector('.m-notice');
+    if (old) old.remove();
+    const n = document.createElement('div');
+    n.className = 'm-notice';
+    n.innerHTML = '<p class="m-title" style="font-size:14px">作业已批改</p><p class="m-text" style="font-size:12px">老师给「第 3 讲」写了评语。</p><button type="button" aria-label="关闭">×</button><span class="bar"></span>';
+    const out = () => { n.classList.add('out'); setTimeout(() => n.remove(), 260); };
+    n.querySelector('button').addEventListener('click', out);
+    n.querySelector('.bar').addEventListener('animationend', out);
+    stage.appendChild(n);
+  };
+  stage.querySelector('.btn').addEventListener('click', push);
+  U.auto(stage, push, 7600);
+  stage.addEventListener('inview', push);
+};
+demo.tips = (stage, U) => {
+  const tips = [...stage.querySelectorAll('.m-tt')];
+  let i = 0;
+  stage.addEventListener('pointerenter', () => tips.forEach((t) => t.classList.remove('show')));
+  U.auto(stage, () => {
+    tips.forEach((t, n) => t.classList.toggle('show', n === i));
+    i = (i + 1) % tips.length;
+  }, 1500);
+};
+demo.lightbox = (stage, U) => {
+  const img = stage.querySelector('.m-lb-img');
+  const lb = stage.querySelector('.m-lb');
+  const label = img.querySelector('span');
+  const thumbs = [...stage.querySelectorAll('.m-thumbs button')];
+  let current = null;
+  const flip = (thumb, opening) => {
+    const a = thumb.getBoundingClientRect();
+    const b = img.getBoundingClientRect();
+    const from = 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px) scale(' + (a.width / b.width) + ',' + (a.height / b.height) + ')';
+    const frames = [{ transform: from }, { transform: 'none' }];
+    return img.animate(opening ? frames : frames.reverse(), { duration: 340, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'both' });
+  };
+  const open = (thumb, n) => {
+    current = thumb;
+    img.className = 'm-lb-img ' + thumb.className;
+    label.textContent = '第 ' + (n + 1) + ' 张 · 示例图';
+    stage.classList.add('on');
+    flip(thumb, true);
+  };
+  const close = () => {
+    if (!current) return;
+    const anim = flip(current, false);
+    current = null;
+    stage.classList.remove('on');
+    anim.onfinish = () => anim.cancel();
+  };
+  thumbs.forEach((t, n) => t.addEventListener('click', () => open(t, n)));
+  lb.addEventListener('click', close);
+  stage.addEventListener('inview', () => open(thumbs[0], 0));
+};
+
+</script>

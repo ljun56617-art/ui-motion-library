@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+名称：抽屉（Drawer）
+编号：02-modals/04
+什么时候用：从一侧推出来的长面板，背后页面还在，适合对照着内容做设置。
+一句话提示词：做一个右侧抽屉（Drawer）：从右边滑入，占三分之二宽度，300ms；不压暗背后页面，用户可以边看页面边操作抽屉，右上角有叉关闭。
+操作提示：点叉关闭
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>抽屉</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.btn { border: 0; border-radius: 10px; padding: 10px 20px; background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; transition: transform .15s, box-shadow .15s, background .2s, color .2s; }
+.btn.sm { padding: 5px 13px; font-size: 13px; border-radius: 8px; }
+.fake { position: absolute; inset: 0; z-index: -1; padding: 14px; display: grid; align-content: start; gap: 9px; }
+.fake i { display: block; height: 10px; border-radius: 5px; background: var(--line); opacity: .55; }
+.fake i:nth-child(1) { width: 42%; height: 15px; }
+.fake i:nth-child(2) { width: 92%; }
+.fake i:nth-child(3) { width: 78%; }
+.fake i:nth-child(4) { width: 86%; }
+.fake i:nth-child(5) { width: 60%; }
+.fake i:nth-child(6) { width: 88%; }
+.fake i:nth-child(7) { width: 70%; }
+.fake i:nth-child(8) { width: 82%; }
+.fake i:nth-child(9) { width: 52%; }
+.pop { position: absolute; z-index: 6; background: var(--surface); box-shadow: 0 14px 30px var(--shadow); visibility: hidden; }
+.on .pop { visibility: visible; }
+.m-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+.m-text { margin: 0; font-size: 13px; color: var(--muted); }
+.m-drawer { top: 0; right: 0; bottom: 0; width: 66%; padding: 14px; border-radius: 14px 0 0 14px; transform: translateX(105%); transition: transform .3s cubic-bezier(.2, .9, .3, 1), visibility 0s .3s; display: grid; align-content: start; gap: 9px; }
+.on .m-drawer { transform: none; transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
+.m-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.m-chips span { font-size: 12px; padding: 1px 9px; border-radius: 12px; background: var(--soft); }
+.m-x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; cursor: pointer; font-size: 16px; line-height: 1; color: var(--muted); }
+.m-x:hover { background: var(--soft); color: var(--ink); }
+</style></head>
+<body><article class="sp" data-name="抽屉" data-en="Drawer" data-auto data-hint="点叉关闭" data-use="从一侧推出来的长面板，背后页面还在，适合对照着内容做设置。" data-prompt="做一个右侧抽屉（Drawer）：从右边滑入，占三分之二宽度，300ms；不压暗背后页面，用户可以边看页面边操作抽屉，右上角有叉关闭。"><div class="stage"><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn sm" type="button" data-open style="justify-self:start;margin-left:14px">筛选</button>
+    <aside class="pop m-drawer"><button class="m-x" type="button" data-close aria-label="关闭">×</button><p class="m-title">筛选课程</p><p class="m-text">难度</p><div class="m-chips"><span>入门</span><span>进阶</span><span>实战</span></div><p class="m-text">时长</p><div class="m-chips"><span>10 分钟内</span><span>半小时</span></div><button class="btn sm" type="button" data-close>应用筛选</button></aside></div></article>
+<script>window.demo = {};
+
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

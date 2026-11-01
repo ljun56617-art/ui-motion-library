@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>卡片与列表动效库</title><style>/* 布局：顶部主题导航 + 名词索引 + 标本网格；每个标本 = 活的演示 + 名称 + 用途 + 一句话提示词 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+.home { font-weight: 800; text-decoration: none; white-space: nowrap; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+.tabs a { padding: 4px 10px; border-radius: 8px; text-decoration: none; white-space: nowrap; color: var(--muted); font-size: 14px; }
+.tabs a:hover { background: var(--soft); color: var(--ink); }
+.tabs a[aria-current] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.pause { flex: none; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+.pause:hover { background: var(--soft); }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 34px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.hero { display: grid; gap: 10px; margin-bottom: 26px; }
+.hero h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; font-weight: 800; text-wrap: balance; }
+.hero h1 small { font: 500 .42em var(--mono); color: var(--muted); margin-left: 10px; white-space: nowrap; }
+.hero > p { margin: 0; max-width: 42em; color: var(--muted); }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.toc a { border: 1px solid var(--line); border-radius: 999px; padding: 1px 11px; font-size: 13px; text-decoration: none; background: var(--surface); }
+.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+.group { grid-column: 1 / -1; margin: 18px 0 0; font-size: 19px; font-weight: 700; }
+.group:first-child { margin-top: 0; }
+.sp { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; scroll-margin-top: 72px; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); border-bottom: 1px solid var(--line); }
+.hint { position: absolute; left: 9px; bottom: 7px; z-index: 30; font-size: 12px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--line); padding: 0 7px; border-radius: 6px; pointer-events: none; }
+[data-name="下拉刷新"] .hint, [data-name="无限滚动"] .hint, [data-name="滚动出现"] .hint, [data-name="固定表头"] .hint { left: auto; right: 9px; }
+.advice { grid-column: 1 / -1; display: grid; gap: 4px; padding: 13px 16px; background: var(--soft); border-radius: 12px; font-size: 14.5px; }
+.advice ul { display: flex; flex-wrap: wrap; gap: 3px 24px; margin: 0; padding: 0; list-style: none; }
+.advice strong { color: var(--accent); }
+.meta { display: flex; flex-direction: column; gap: 8px; padding: 13px 15px 15px; flex: 1; }
+.meta-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; }
+.no { font: 600 12px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.meta h3 { margin: 0; font-size: 17px; line-height: 1.3; }
+.en { font: 12px var(--mono); color: var(--muted); }
+.use { margin: 0; font-size: 14px; color: var(--muted); }
+.params { font: 12px var(--mono); color: var(--accent); }
+.pr { margin-top: auto; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: start; background: var(--stage); border-radius: 9px; padding: 9px 11px; }
+.pr b { grid-column: 1; font-size: 12px; font-weight: 600; color: var(--accent); }
+.pr p { grid-column: 1; margin: 0; font-size: 13.5px; line-height: 1.6; min-width: 0; }
+.pr button { grid-column: 2; grid-row: 1 / 3; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 2px 9px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.pr button:hover { border-color: var(--accent); color: var(--accent); }
+.note { margin: 34px 0 0; font-size: 13px; color: var(--muted); max-width: 52em; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; font-weight: 600; }
+.pager a { text-decoration: none; color: var(--accent); }
+.pager a:hover { text-decoration: underline; }
+
+/* 演示共用的小零件 */
+.btn { border: 0; border-radius: 10px; padding: 10px 20px; background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; transition: transform .15s, box-shadow .15s, background .2s, color .2s; }
+.btn.line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.btn.sm { padding: 5px 13px; font-size: 13px; border-radius: 8px; }
+.fake { position: absolute; inset: 0; z-index: -1; padding: 14px; display: grid; align-content: start; gap: 9px; }
+.fake i { display: block; height: 10px; border-radius: 5px; background: var(--line); opacity: .55; }
+.fake i:nth-child(1) { width: 42%; height: 15px; }
+.fake i:nth-child(2) { width: 92%; } .fake i:nth-child(3) { width: 78%; } .fake i:nth-child(4) { width: 86%; }
+.fake i:nth-child(5) { width: 60%; } .fake i:nth-child(6) { width: 88%; } .fake i:nth-child(7) { width: 70%; }
+.fake i:nth-child(8) { width: 82%; } .fake i:nth-child(9) { width: 52%; }
+
+body.paused .stage *, body.paused .stage *::before, body.paused .stage *::after,
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+
+/* 目录页 */
+.rows { display: grid; gap: 12px; }
+.row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 18px; align-items: center; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; text-decoration: none; transition: border-color .2s, transform .2s; }
+.row:hover { border-color: var(--accent); transform: translateX(3px); }
+.row h2 { margin: 0; font-size: 21px; line-height: 1.3; }
+.row h2 small { font: 500 13px var(--mono); color: var(--accent); margin-left: 6px; }
+.row p { margin: 3px 0 0; font-size: 13.5px; color: var(--muted); }
+.ic { width: 96px; height: 72px; position: relative; display: grid; place-items: center; background: var(--stage); border-radius: 10px; overflow: hidden; }
+.ic-sw { width: 44px; height: 24px; border-radius: 12px; background: var(--soft); position: relative; animation: ic-sw-t 2.4s infinite; }
+.ic-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px var(--shadow); animation: ic-sw-k 2.4s infinite; }
+@keyframes ic-sw-t { 0%, 40% { background: var(--soft); } 50%, 90% { background: var(--accent); } 100% { background: var(--soft); } }
+@keyframes ic-sw-k { 0%, 40% { transform: none; } 50%, 90% { transform: translateX(20px); } 100% { transform: none; } }
+.ic-md { width: 50px; height: 34px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 5px 12px var(--shadow); animation: ic-md 2.4s infinite cubic-bezier(.2, 1.3, .4, 1); }
+@keyframes ic-md { 0% { transform: scale(.5); opacity: 0; } 25%, 80% { transform: none; opacity: 1; } 100% { transform: scale(.8); opacity: 0; } }
+.ic-ball { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); animation: ic-ball .8s infinite alternate cubic-bezier(.3, 0, .7, .3); }
+@keyframes ic-ball { from { transform: translateY(-20px); } to { transform: translateY(18px); } }
+.ic-in { width: 66px; height: 26px; border: 1.5px solid var(--accent); border-radius: 6px; position: relative; background: var(--surface); }
+.ic-in::after { content: ""; position: absolute; left: 8px; top: 5px; width: 2px; height: 13px; background: var(--ink); animation: ic-in 1s steps(2) infinite; }
+@keyframes ic-in { 50% { opacity: 0; } }
+.ic-sp { width: 32px; height: 32px; border-radius: 50%; border: 4px solid var(--soft); border-top-color: var(--accent); animation: ic-sp .9s linear infinite; }
+@keyframes ic-sp { to { transform: rotate(360deg); } }
+.ic-cd { width: 40px; height: 48px; border-radius: 6px; background: linear-gradient(150deg, var(--art3), var(--art1)); animation: ic-cd 2.4s ease-in-out infinite alternate; }
+@keyframes ic-cd { from { transform: perspective(200px) rotateY(-28deg); } to { transform: perspective(200px) rotateY(28deg); } }
+@media (max-width: 560px) {
+  .home { display: none; }
+  .row { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .ic { width: 64px; height: 60px; transform-origin: center; }
+  .ic > * { scale: .78; }
+}
+
+:root { --stage-h: 320px; }
+.c { width: min(84%, 260px); background: var(--surface); border-radius: 14px; box-shadow: 0 4px 14px var(--shadow); overflow: hidden; }
+.c-pad { padding: 13px 15px; }
+.c h4 { margin: 0 0 3px; font-size: 16px; line-height: 1.35; }
+.c p { margin: 0; font-size: 13px; color: var(--muted); }
+.art { background: radial-gradient(circle at 76% 30%, var(--on-art) 0 9%, transparent 9.5%), linear-gradient(158deg, transparent 62%, var(--art2) 62.5%), linear-gradient(204deg, transparent 48%, var(--art1) 48.5%), linear-gradient(var(--art3), var(--art3)); }
+
+.c-basic { transition: transform .25s cubic-bezier(.2, .9, .3, 1), box-shadow .25s; }
+.c-basic:hover, .c-basic.show { transform: translateY(-7px); box-shadow: 0 16px 30px var(--shadow); }
+.c-basic a { display: inline-block; margin-top: 9px; font-size: 13px; color: var(--accent); font-weight: 600; text-decoration: none; }
+
+.c-media-img { height: 130px; overflow: hidden; }
+.c-media-img div { height: 100%; transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.c-media:hover .c-media-img div, .c-media.show .c-media-img div { transform: scale(1.12); }
+.c-media { cursor: pointer; }
+
+.c-prof { text-align: center; }
+.c-prof-top { height: 66px; }
+.c-prof-av { width: 72px; height: 72px; margin: -36px auto 6px; border-radius: 50%; border: 4px solid var(--surface); background: linear-gradient(145deg, var(--art3), var(--art2)); transition: transform .35s cubic-bezier(.2, 1.5, .4, 1); }
+.c-prof:hover .c-prof-av, .c-prof.show .c-prof-av { transform: scale(1.1) rotate(-5deg); }
+.c-prof-nums { display: flex; justify-content: center; gap: 20px; margin-top: 9px; font-size: 12px; color: var(--muted); }
+.c-prof-nums b { display: block; font: 700 16px var(--mono); color: var(--ink); }
+.c-follow { margin-top: 11px; }
+.c-follow.done { background: var(--soft); color: var(--ink); }
+
+.c-prod { position: relative; }
+.c-prod-img { height: 136px; }
+.c-tag { position: absolute; left: 9px; top: 9px; padding: 0 8px; border-radius: 6px; background: var(--err); color: var(--surface); font-size: 12px; font-weight: 600; }
+.c-price { display: flex; align-items: baseline; gap: 7px; margin-top: 3px; }
+.c-price b { font: 700 19px var(--mono); color: var(--accent); }
+.c-price s { font-size: 12px; color: var(--muted); }
+.c-add { position: absolute; left: 0; right: 0; top: 91px; margin: 0 auto; width: 74%; transform: translateY(18px); opacity: 0; transition: transform .25s cubic-bezier(.2, 1.1, .4, 1), opacity .2s; }
+.c-prod:hover .c-add, .c-prod:focus-within .c-add, .c-prod.show .c-add { transform: none; opacity: 1; }
+
+.c-stat .lab { font-size: 13px; color: var(--muted); }
+.c-stat .num { font: 700 34px/1.25 var(--mono); font-variant-numeric: tabular-nums; }
+.c-stat .up { font-size: 13px; color: var(--ok); font-weight: 600; }
+.c-stat svg { display: block; width: 100%; height: 70px; margin-top: 7px; }
+.c-stat .sl { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.c-stat .sa { fill: var(--soft); opacity: 0; transition: opacity .6s .9s; }
+.c-stat.go .sa { opacity: .8; }
+.c-stat .pt { fill: var(--accent); opacity: 0; transition: opacity .2s 1.3s; }
+.c-stat.go .pt { opacity: 1; }
+
+.c-flip-box { perspective: 800px; width: min(70%, 200px); height: 250px; background: none; border: 0; padding: 0; cursor: pointer; display: block; }
+.c-flip { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.4, .1, .2, 1); }
+.on .c-flip { transform: rotateY(180deg); }
+.c-face { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 5px; padding: 14px; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 7px 18px var(--shadow); text-align: center; }
+.c-front { background: linear-gradient(150deg, var(--art3), var(--art1) 55%, var(--art2)); color: var(--on-art); font-size: 25px; font-weight: 800; }
+.c-front small { font-size: 13px; font-weight: 500; }
+.c-back { background: var(--surface); transform: rotateY(180deg); font-size: 13.5px; }
+.c-back b { font-size: 15px; }
+
+
+
+.c-stack { position: relative; width: min(66%, 200px); height: 230px; }
+.c-st { position: absolute; inset: 0; border: 0; border-radius: 14px; padding: 15px; color: var(--on-art); text-align: left; display: grid; align-content: end; font-size: 16px; font-weight: 700; box-shadow: 0 6px 16px var(--shadow); cursor: pointer; transition: transform .45s cubic-bezier(.2, .9, .3, 1), opacity .3s; transform: translateY(calc(var(--o) * -13px)) scale(calc(1 - var(--o) * .06)); z-index: calc(10 - var(--o)); }
+.c-st[data-c="0"] { background: linear-gradient(150deg, var(--art1), var(--art2)); }
+.c-st[data-c="1"] { background: linear-gradient(150deg, var(--art3), var(--art1)); }
+.c-st[data-c="2"] { background: linear-gradient(150deg, var(--accent), var(--accent-deep)); }
+.c-st[data-c="3"] { background: linear-gradient(150deg, var(--art2), var(--accent-deep)); }
+.c-st.away { transform: translate(120%, 12px) rotate(14deg); opacity: 0; }
+
+.c-swipe-box { position: relative; width: min(66%, 200px); height: 240px; }
+.c-sw { position: absolute; inset: 0; border-radius: 14px; padding: 13px; display: grid; align-content: end; color: var(--on-art); box-shadow: 0 7px 18px var(--shadow); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.c-sw:active { cursor: grabbing; }
+.c-sw b { font-size: 17px; }
+.c-sw.back { transition: transform .35s cubic-bezier(.2, 1.2, .4, 1); }
+.c-sw.fly { transition: transform .35s ease-in, opacity .35s; opacity: 0; }
+.c-sw[data-c="0"] { background: linear-gradient(150deg, var(--art3), var(--art1)); }
+.c-sw[data-c="1"] { background: linear-gradient(150deg, var(--art1), var(--art2)); }
+.c-sw[data-c="2"] { background: linear-gradient(150deg, var(--accent), var(--accent-deep)); }
+.c-stamp { position: absolute; top: 14px; padding: 0 9px; border: 2.5px solid currentColor; border-radius: 7px; font-size: 16px; font-weight: 800; background: var(--surface); opacity: 0; }
+.c-stamp.y { left: 11px; color: var(--ok); transform: rotate(-12deg); }
+.c-stamp.n { right: 11px; color: var(--err); transform: rotate(12deg); }
+
+.c-glass-bg { position: absolute; inset: 0; background: linear-gradient(135deg, var(--art3), var(--art1)); }
+.c-glass-bg i { position: absolute; border-radius: 50%; animation: c-orb 7s ease-in-out infinite alternate; }
+.c-glass-bg i:nth-child(1) { width: 130px; height: 130px; left: 8%; top: 12%; background: var(--art2); }
+.c-glass-bg i:nth-child(2) { width: 96px; height: 96px; right: 10%; bottom: 8%; background: var(--on-art); opacity: .9; animation-delay: -2s; animation-duration: 6s; }
+.c-glass-bg i:nth-child(3) { width: 66px; height: 66px; right: 30%; top: 8%; background: var(--accent-deep); animation-duration: 9s; }
+@keyframes c-orb { to { transform: translate(34px, 24px) scale(1.15); } }
+.c-glass { position: relative; width: min(74%, 230px); padding: 17px; border-radius: 16px; color: var(--ink); background: color-mix(in srgb, var(--surface) 45%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); border: 1px solid color-mix(in srgb, var(--surface) 60%, transparent); box-shadow: 0 10px 26px var(--shadow); }
+.c-glass h4 { margin: 0 0 3px; font-size: 17px; }
+.c-glass p { margin: 0; font-size: 13.5px; }
+
+.c-bento { width: min(92%, 310px); height: 250px; margin-bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 7px; }
+.c-bento > div { border-radius: 12px; padding: 9px 10px; background: var(--surface); box-shadow: 0 2px 7px var(--shadow); font-size: 12.5px; display: grid; align-content: end; transition: transform .25s cubic-bezier(.2, 1.3, .4, 1); min-width: 0; }
+.c-bento > div:hover { transform: scale(1.04); }
+.c-bento b { font-size: 21px; font-family: var(--mono); line-height: 1.2; }
+.c-b1 { grid-column: span 2; grid-row: span 2; background: linear-gradient(150deg, var(--art3), var(--art1) 60%, var(--art2)) !important; color: var(--on-art); font-size: 15px !important; font-weight: 700; }
+.c-b4 { grid-column: span 2; }
+
+
+.c-pr-box { width: min(92%, 310px); display: grid; gap: 10px; justify-items: center; }
+.c-pr-tog { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.c-pr-tog button { width: 40px; height: 22px; padding: 0; border-radius: 11px; border: 0; background: var(--accent); position: relative; cursor: pointer; }
+.c-pr-tog button::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: transform .22s; }
+.c-pr-tog button[aria-pressed="true"]::after { transform: translateX(18px); }
+.c-prs { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; width: 100%; align-items: center; }
+.c-plan { background: var(--surface); border-radius: 13px; padding: 12px 11px; box-shadow: 0 2px 8px var(--shadow); display: grid; gap: 4px; }
+.c-plan.hot { position: relative; padding-block: 19px; box-shadow: 0 0 0 2px var(--accent), 0 8px 20px var(--shadow); }
+.c-plan.hot::before { content: "推荐"; position: absolute; top: -9px; left: 11px; padding: 0 7px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: 11.5px; font-weight: 600; }
+.c-plan h4 { margin: 0; font-size: 14px; }
+.c-plan b { font: 700 22px var(--mono); font-variant-numeric: tabular-nums; }
+.c-plan span { font-size: 12px; color: var(--muted); }
+@media (hover: hover) { .c-flip-box:hover .c-flip { transform: rotateY(180deg); } }
+
+.k-car { position: relative; width: min(88%, 290px); border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px var(--shadow); }
+.k-car-t { display: flex; transition: transform .4s cubic-bezier(.2, .9, .3, 1); }
+.k-car-t > div { flex: 0 0 100%; height: 190px; display: grid; align-content: end; padding: 12px 14px; color: var(--on-art); font-weight: 700; font-size: 16px; }
+.k-s1 { background: linear-gradient(150deg, var(--art3), var(--art1)); } .k-s2 { background: linear-gradient(150deg, var(--art1), var(--art2)); } .k-s3 { background: linear-gradient(150deg, var(--art2), var(--accent-deep)); }
+.k-arr { position: absolute; top: 50%; width: 30px; height: 30px; margin-top: -15px; border: 0; border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: 0 2px 6px var(--shadow); }
+.k-arr.l { left: 8px; } .k-arr.r { right: 8px; }
+.k-dots { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 5px; }
+.k-dots i { width: 7px; height: 7px; border-radius: 4px; background: var(--on-art); opacity: .5; transition: width .2s, opacity .2s; }
+.k-dots i.on { width: 16px; opacity: 1; }
+
+.k-mas { position: absolute; inset: 0; padding: 10px 12px; columns: 3; column-gap: 8px; overflow: hidden; }
+.k-mas div { break-inside: avoid; margin-bottom: 8px; border-radius: 9px; display: grid; align-content: end; padding: 7px; font-size: 12px; font-weight: 600; color: var(--on-art); transition: transform .2s; animation: k-rise .4s calc(var(--i) * 60ms) cubic-bezier(.2, .9, .3, 1) backwards; }
+.k-mas div:hover { transform: scale(1.04); }
+.k-mas div:nth-child(3n+1) { background: linear-gradient(160deg, var(--art3), var(--art1)); }
+.k-mas div:nth-child(3n+2) { background: linear-gradient(160deg, var(--art1), var(--art2)); }
+.k-mas div:nth-child(3n) { background: linear-gradient(160deg, var(--art2), var(--accent-deep)); }
+@keyframes k-rise { from { opacity: 0; transform: translateY(14px); } }
+
+.k-tl { list-style: none; margin: 0; padding: 0; width: min(82%, 260px); position: relative; display: grid; gap: 14px; }
+.k-tl::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.k-tl::after { content: ""; position: absolute; left: 7px; top: 8px; width: 2px; height: var(--h, 0%); max-height: calc(100% - 16px); background: var(--accent); transition: height .4s; }
+.k-tl li { position: relative; padding-left: 26px; font-size: 14px; color: var(--muted); transition: color .2s; }
+.k-tl li::before { content: ""; position: absolute; z-index: 1; left: 1px; top: 5px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); transition: background .2s, border-color .2s, transform .25s cubic-bezier(.2, 1.7, .4, 1); }
+.k-tl li.on { color: var(--ink); font-weight: 600; }
+.k-tl li.on::before { background: var(--accent); border-color: var(--accent); transform: scale(1.15); }
+.k-tl small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+
+.k-av { display: flex; padding-left: 12px; }
+.k-av span, .k-av button { width: 50px; height: 50px; margin-left: -12px; border-radius: 50%; display: grid; place-items: center; color: var(--on-art); font-weight: 700; border: 3px solid var(--stage); transition: margin .2s, transform .2s; }
+.k-av:hover span, .k-av:hover button, .k-av.show span, .k-av.show button { margin-left: 3px; }
+.k-av span:nth-child(1) { background: var(--art1); } .k-av span:nth-child(2) { background: var(--art2); } .k-av span:nth-child(3) { background: var(--accent-deep); } .k-av span:nth-child(4) { background: linear-gradient(145deg, var(--art3), var(--art1)); }
+.k-av button { background: var(--soft); color: var(--ink); cursor: pointer; font-size: 14px; }
+
+.k-bd { display: flex; gap: 34px; }
+.k-bd-i { position: relative; width: 56px; height: 56px; display: grid; place-items: center; font-size: 25px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.k-bd-n { position: absolute; top: -8px; left: 34px; min-width: 22px; height: 22px; padding-inline: 6px; border-radius: 11px; background: var(--err); color: var(--surface); font: 700 12px/22px var(--mono); text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.k-bd-n.pop { animation: k-pop .3s cubic-bezier(.2, 1.7, .4, 1); }
+@keyframes k-pop { from { transform: scale(.5); } }
+.k-bd-d { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--err); }
+
+.k-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: min(88%, 280px); }
+.k-tags span { padding: 2px 11px; border-radius: 7px; font-size: 13.5px; font-weight: 600; animation: k-tag 4s calc(var(--i) * 110ms) cubic-bezier(.2, 1.4, .4, 1) infinite; }
+@keyframes k-tag { 0% { opacity: 0; transform: scale(.7); } 10%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.k-t-ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.k-t-err { background: color-mix(in srgb, var(--err) 16%, transparent); color: var(--err); }
+.k-t-wait { background: color-mix(in srgb, var(--gold) 26%, transparent); color: var(--ink); }
+.k-t-a { background: var(--soft); color: var(--accent); }
+.k-t-m { background: var(--line); color: var(--ink); }
+
+.k-acc { width: min(90%, 300px); display: grid; gap: 7px; }
+.k-acc-i { background: var(--surface); border-radius: 11px; box-shadow: 0 2px 8px var(--shadow); overflow: hidden; }
+.k-acc-h { display: flex; justify-content: space-between; width: 100%; padding: 10px 13px; border: 0; background: none; cursor: pointer; font-weight: 600; font-size: 14px; text-align: left; }
+.k-acc-h span:last-child { color: var(--accent); font-size: 17px; line-height: 1.2; transition: transform .2s; }
+.open .k-acc-h span:last-child { transform: rotate(45deg); }
+.k-acc-b { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s cubic-bezier(.2, .9, .3, 1); }
+.open .k-acc-b { grid-template-rows: 1fr; }
+.k-acc-b p { margin: 0; overflow: hidden; visibility: hidden; font-size: 13px; color: var(--muted); padding-inline: 13px; transition: visibility 0s .25s; }
+.open .k-acc-b p { visibility: visible; padding-bottom: 10px; transition-delay: 0s; }
+
+.k-tb-w { width: min(92%, 320px); background: var(--surface); border-radius: 11px; box-shadow: 0 3px 11px var(--shadow); overflow: hidden; }
+.k-tb { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.k-tb th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px; padding: 8px 11px; background: var(--surface); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.k-tb td { padding: 7px 11px; border-bottom: 1px solid var(--line); }
+.k-tb tr:last-child td { border-bottom: 0; }
+.k-tb .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.k-sc { max-height: 244px; overflow-y: auto; scrollbar-width: thin; }
+.k-sc thead th { position: sticky; top: 0; z-index: 1; transition: box-shadow .2s; }
+.k-sc.scrolled thead th { box-shadow: 0 4px 8px -3px var(--shadow); }
+
+.k-sort { border: 0; background: none; cursor: pointer; font: inherit; color: inherit; padding: 0; display: inline-flex; gap: 4px; align-items: center; }
+.k-sort i { font-style: normal; color: var(--line); transition: transform .2s, color .2s; display: inline-block; }
+.k-sort[data-dir] i { color: var(--accent); }
+.k-sort[data-dir="desc"] i { transform: rotate(180deg); }
+.k-fil { display: flex; gap: 6px; padding: 7px 10px; align-items: center; font-size: 13px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.k-fil button { padding: 1px 9px; border-radius: 11px; border: 1px solid var(--line); background: none; cursor: pointer; font-size: 12.5px; transition: background .15s, color .15s; }
+.k-fil button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.k-tb tbody tr { animation: k-row .22s ease-out; }
+@keyframes k-row { from { opacity: 0; transform: translateY(-5px); } }
+
+.k-rows { width: min(92%, 320px); background: var(--surface); border-radius: 11px; box-shadow: 0 3px 11px var(--shadow); overflow: hidden; }
+.k-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px; transition: background .15s, opacity .2s, min-height .2s; }
+.k-row:last-child { border-bottom: 0; }
+.k-row:hover, .k-row.show { background: var(--stage); }
+.k-acts { display: flex; gap: 8px; opacity: 0; transform: translateX(7px); transition: opacity .15s, transform .15s; }
+.k-row:hover .k-acts, .k-row:focus-within .k-acts, .k-row.show .k-acts { opacity: 1; transform: none; }
+.k-acts button { border: 0; background: none; cursor: pointer; color: var(--accent); font-size: 13px; padding: 2px; }
+.k-acts button.del { color: var(--err); }
+.k-row.gone { opacity: 0; min-height: 0; height: 0; overflow: hidden; border: 0; }
+@media (hover: none) { .k-acts { opacity: 1; transform: none; } }
+
+.k-zb-box { display: grid; gap: 9px; justify-items: center; width: 100%; }
+.k-zb .k-tb tbody tr:nth-child(even) td { background: var(--soft); transition: background .2s; }
+.k-zb-box.off .k-tb tbody tr:nth-child(even) td { background: transparent; }
+.k-zb-box .btn { padding: 3px 12px; font-size: 13px; }
+
+.k-cl { width: min(92%, 320px); }
+.k-cl-top { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.k-cl-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.k-cl-g > div { display: grid; grid-template-rows: 62px auto; background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 7px var(--shadow); font-size: 13px; font-weight: 600; transition: grid-template-rows .25s; }
+.k-cl-g > div > i { background: linear-gradient(150deg, var(--art3), var(--art1)); }
+.k-cl-g > div > span { padding: 6px 9px; }
+.k-cl.list .k-cl-g { grid-template-columns: 1fr; gap: 5px; }
+.k-cl.list .k-cl-g > div { grid-template-columns: 44px 1fr; grid-template-rows: 44px; align-items: center; }
+</style></head>
+<body><header class="top"><a class="home" href="index.html">UI 动效库</a><nav class="tabs" aria-label="主题"><a href="01-buttons.html">按钮与开关</a><a href="02-modals.html">弹窗</a><a href="03-motion.html">动效</a><a href="04-forms.html">表单</a><a href="05-loading.html">加载与错误页</a><a href="06-cards.html" aria-current=page>卡片与列表</a></nav><button class="pause" id="pauseAll" type="button" aria-pressed="false">暂停动效</button></header><main class="wrap"><section class="hero"><h1>卡片与列表<small>Cards & Lists · 23 种</small></h1><p>卡片、列表和表格的常见做法。按要展示的内容来选。</p><nav class="toc" aria-label="本页条目"></nav></section><div class="grid"><h2 class="group">展示一项内容</h2>
+<article class="sp" data-name="基础信息卡" data-en="Basic Card" data-demo="pulseShow" data-hint="移上去" data-use="标题、一句说明、一个入口。所有卡片都是它的变种。" data-prompt="做一个基础信息卡：圆角 14px，含标题、说明和文字链接；鼠标移上去上浮 7px、阴影变深，过渡 200ms。">
+  <div class="stage"><div class="c c-pad c-basic"><h4>第 3 讲：弹窗怎么选</h4><p>打断程度从重到轻排一遍，就知道该用哪一种。</p><a href="#s1">开始学习 →</a></div></div>
+</article>
+<article class="sp" data-name="图文卡" data-en="Media Card" data-demo="pulseShow" data-hint="移上去" data-use="上图下文，图片负责吸引点击。悬停时只放大图片，外框不动。" data-prompt="做一个图文卡：上方封面图、下方标题和说明；鼠标移上去时图片在框内放大 12%，600ms，外框尺寸不变。">
+  <div class="stage"><div class="c c-media"><div class="c-media-img"><div class="art"></div></div><div class="c-pad"><h4>城市漫步摄影课</h4><p>周末 2 小时，手机就够了</p></div></div></div>
+</article>
+<article class="sp" data-name="个人资料卡" data-en="Profile Card" data-demo="profile" data-hint="点关注" data-use="展示一个人。头像压在封面和内容的分界线上，是最常见的版式。" data-prompt="做一个个人资料卡：顶部封面，圆形头像压在分界线上，下面是姓名、数据和关注按钮；悬停时头像放大并微微转动。">
+  <div class="stage"><div class="c c-prof"><div class="c-prof-top art"></div><div class="c-prof-av"></div><div class="c-pad" style="padding-top:0"><h4>林老师</h4><p>教了 6 年 AI 工具课</p><div class="c-prof-nums"><div><b>32</b>门课</div><div><b>1.2k</b>学员</div></div><button class="btn sm c-follow" type="button">关注</button></div></div></div>
+</article>
+<article class="sp" data-name="商品卡" data-en="Product Card" data-demo="pulseShow" data-hint="移上去" data-use="电商列表。价格要醒目，购买按钮悬停才滑出来，平时画面更干净。" data-prompt="做一个商品卡：左上角折扣角标，价格橙色加粗，旁边是划线原价；悬停时「加入购物车」按钮从图片底部滑出。">
+  <div class="stage"><div class="c c-prod"><div class="c-prod-img art"></div><span class="c-tag">限时 7 折</span><button class="btn sm c-add" type="button">加入购物车</button><div class="c-pad"><h4>零基础 AI 工作坊</h4><div class="c-price"><b>¥139</b><s>¥199</s></div></div></div></div>
+</article>
+<article class="sp" data-name="价格卡" data-en="Pricing Card" data-demo="pricing" data-hint="点切换" data-use="让用户比较方案。推荐款放大并加描边，视线会先落到它上面。" data-prompt="做一组价格卡：两个方案并排，推荐款更大、带橙色描边和角标；月付和年付切换时价格数字滚动到新值。">
+  <div class="stage"><div class="c-pr-box"><div class="c-pr-tog">月付<button type="button" aria-pressed="false" aria-label="切换年付"></button>年付省 20%</div><div class="c-prs"><div class="c-plan"><h4>自学版</h4><div><b data-m="99" data-y="79">99</b><span> /月</span></div><span>录播全部课程</span></div><div class="c-plan hot"><h4>陪跑版</h4><div><b data-m="299" data-y="239">299</b><span> /月</span></div><span>录播 + 每周答疑</span></div></div></div></div>
+</article>
+<article class="sp" data-name="统计卡片" data-en="Stat Card" data-demo="stat" data-use="一个醒目的大数字，加上涨跌方向，后台首页的常客。" data-prompt="做一个统计卡片（Stat Card）：大号数字从 0 滚动到目标值，下面是上升箭头和环比涨幅，底部迷你折线图同步画出，末端加圆点。">
+  <div class="stage"><div class="c c-pad c-stat"><div class="lab">本周完课人数（示例）</div><div class="num">0</div><div class="up">↑ 18% 比上周</div><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path class="sa" d="M4 58 L36 48 L68 52 L100 34 L132 38 L164 20 L196 10 V70 H4 Z"/><path class="sl" pathLength="1" d="M4 58 L36 48 L68 52 L100 34 L132 38 L164 20 L196 10"/><circle class="pt" cx="196" cy="10" r="3.5"/></svg></div></div>
+</article>
+<article class="sp" data-name="翻转卡片" data-en="Flip Card" data-demo="flipCard" data-hint="鼠标移上去，手机上点一下" data-use="光标一到，卡片转个面，一面是图，另一面是说明。" data-prompt="做一个翻转卡片（Flip Card）：鼠标悬停时绕 Y 轴翻转 180 度，700ms，正面是图，背面是详情文字；手机上改成点击翻转。">
+  <div class="stage"><button class="c-flip-box" type="button" data-toggle aria-label="翻转卡片"><span class="c-flip"><span class="c-face c-front">Toast<small>这个词是什么？</small></span><span class="c-face c-back"><b>轻提示</b>两秒自己消失的小提示，不打断操作。</span></span></button></div>
+</article>
+<article class="sp" data-name="玻璃拟态卡" data-en="Glassmorphism" data-use="半透明磨砂，背后的色块透出来。背景要有色彩变化才看得出效果。" data-prompt="做一个玻璃拟态卡：半透明背景加 backdrop-filter 模糊 14px，细白边框，背后放几个缓慢漂浮的彩色圆形。">
+  <div class="stage"><div class="c-glass-bg"><i></i><i></i><i></i></div><div class="c-glass"><h4>今日学习</h4><p>已完成 2 节，还差 1 节就达成目标。</p></div></div>
+</article>
+<h2 class="group">展示很多项</h2>
+<article class="sp" data-name="卡片和列表" data-en="Card & List" data-demo="cardList" data-hint="点切换" data-use="两种基础排法。图片重要用卡片，要快速看很多条用列表。" data-prompt="同一组内容做卡片和列表（Card & List）两种视图，右上角按钮切换：卡片是两列上图下文，列表是单列左图右文，切换时平滑过渡。">
+  <div class="stage"><div class="k-cl"><div class="k-cl-top"><button class="btn line sm" type="button">切换成列表</button></div><div class="k-cl-g"><div><i></i><span>提示词入门</span></div><div><i></i><span>做一个网页</span></div><div><i></i><span>自动化报表</span></div><div><i></i><span>数据看板</span></div></div></div></div>
+</article>
+<article class="sp" data-name="瀑布流" data-en="Masonry" data-use="列宽一致、高矮不齐，图片比例不一样时也能排得紧密。" data-prompt="做一个瀑布流（Masonry）：三列等宽、高度不一的卡片，上下紧密排列没有空洞，进场时依次上浮淡入，每张延迟 60ms。">
+  <div class="stage"><div class="k-mas"><div style="height:96px;--i:0">作品 1</div><div style="height:62px;--i:1">作品 2</div><div style="height:112px;--i:2">作品 3</div><div style="height:76px;--i:3">作品 4</div><div style="height:120px;--i:4">作品 5</div><div style="height:58px;--i:5">作品 6</div><div style="height:84px;--i:6">作品 7</div><div style="height:94px;--i:7">作品 8</div><div style="height:78px;--i:8">作品 9</div></div></div>
+</article>
+<article class="sp" data-name="便当格" data-en="Bento Grid" data-hint="移到格子上" data-use="大小不一的卡片拼成一块，把重点放大。近年官网和个人主页很流行。" data-prompt="做一个便当格布局：3 列 3 行网格，主卡占 2×2，其余大小不一，间距 7px，悬停时单个格子放大 4%。">
+  <div class="stage"><div class="c-bento"><div class="c-b1">本周学习概览</div><div><b>7</b>连续天数</div><div><b>3</b>待交作业</div><div class="c-b4"><b>82%</b>课程进度</div><div><b>A</b>上次成绩</div></div></div>
+</article>
+<article class="sp" data-name="轮播" data-en="Carousel" data-demo="carousel" data-hint="点箭头切换" data-use="几张图轮流露面，通常占首页首屏的大块位置。" data-prompt="做一个轮播（Carousel）：三张图横排，每 3 秒自动向左滑动一张，400ms 缓动；两侧有箭头，右下角指示点，当前点拉长；鼠标操作后停止自动播放。">
+  <div class="stage"><div class="k-car"><div class="k-car-t"><div class="k-s1">本周新课：提示词入门</div><div class="k-s2">直播回放：做一个网页</div><div class="k-s3">学员作品展</div></div><button class="k-arr l" type="button" aria-label="上一张">‹</button><button class="k-arr r" type="button" aria-label="下一张">›</button><div class="k-dots"><i class="on"></i><i></i><i></i></div></div></div>
+</article>
+<article class="sp" data-name="堆叠卡" data-en="Stacked Cards" data-demo="stack" data-hint="点最上面那张" data-use="空间有限又有多张内容时。下面露出的边提示「还有更多」。" data-prompt="做一组堆叠卡：多张卡片错开叠放，后面的依次缩小上移；点最上面一张向右飞出，其余向前补位，飞出的回到最底层。">
+  <div class="stage"><div class="c-stack"></div></div>
+</article>
+<article class="sp" data-name="滑动卡" data-en="Swipe Card" data-demo="swipe" data-hint="左右拖动卡片" data-use="一次只决定一张，左滑不要、右滑想要。探探模式。" data-prompt="做一个左右滑动卡片：卡片跟手拖动并随距离旋转，出现「想学」或「跳过」印章；超过 90px 飞出，否则回弹。">
+  <div class="stage"><div class="c-swipe-box"></div></div>
+</article>
+<h2 class="group">标注和收纳</h2>
+<article class="sp" data-name="时间线" data-en="Timeline" data-demo="timeline" data-use="竖线上串几个节点，快递走到哪一站这类记录一眼能看懂。" data-prompt="做一个时间线（Timeline）：竖线串起 4 个节点，已完成的节点橙色实心放大一点，进度线逐段向下延伸，每个节点写状态和时间。">
+  <div class="stage"><ol class="k-tl"><li>已下单<small>11 月 1 日 09:20</small></li><li>已发货<small>11 月 1 日 16:05</small></li><li>运输中<small>11 月 2 日 08:40</small></li><li>已签收<small>预计 11 月 3 日</small></li></ol></div>
+</article>
+<article class="sp" data-name="徽标" data-en="Badge" data-demo="badge" data-use="角上的红点或小数字，说明有新东西。数字太大就写 99+。" data-prompt="给图标加徽标（Badge）：右上角红色圆角数字，数字变化时弹一下，超过 99 显示「99+」；另一个图标只用小红点。">
+  <div class="stage"><div class="k-bd"><div class="k-bd-i" aria-label="消息">🔔<span class="k-bd-n">3</span></div><div class="k-bd-i" aria-label="邮件">✉️<span class="k-bd-d"></span></div></div></div>
+</article>
+<article class="sp" data-name="标签" data-en="Tag" data-use="小色块标出状态。状态多时别每种都配新色，五种上下最好认。" data-prompt="做一组状态标签（Tag）：圆角小方块，浅色底配同色字，已完成绿、进行中橙、待处理金、已取消红、草稿灰，总共不超过 5 种颜色。">
+  <div class="stage"><div class="k-tags"><span class="k-t-ok" style="--i:0">已完成</span><span class="k-t-a" style="--i:1">进行中</span><span class="k-t-wait" style="--i:2">待处理</span><span class="k-t-err" style="--i:3">已取消</span><span class="k-t-m" style="--i:4">草稿</span></div></div>
+</article>
+<article class="sp" data-name="头像组" data-en="Avatar Group" data-demo="avatars" data-hint="移上去会散开" data-use="圆头像叠着排，尾巴写「+5」，表示还有几个人一起。" data-prompt="做一个头像组（Avatar Group）：4 个圆形头像错开重叠，最后一个圆写「+5」，头像带和背景同色的描边；鼠标移上去时散开，200ms。">
+  <div class="stage"><div class="k-av"><span>林</span><span>满</span><span>舟</span><span>禾</span><button type="button" aria-label="还有 5 人">+5</button></div></div>
+</article>
+<article class="sp" data-name="折叠面板" data-en="Accordion" data-demo="accordion" data-hint="点标题" data-use="标题常驻，内容点开才看，常见问题列表和手机页面很合适。" data-prompt="做一个折叠面板（Accordion）：点标题平滑展开内容，高度用 grid-template-rows 从 0fr 到 1fr 过渡，加号旋转成叉，250ms；同时只展开一项。">
+  <div class="stage"><div class="k-acc"><div class="k-acc-i open"><button class="k-acc-h" type="button"><span>怎么开始上课？</span><span>+</span></button><div class="k-acc-b"><p>报名后加入学习群，课件和直播链接都发在群里。</p></div></div><div class="k-acc-i"><button class="k-acc-h" type="button"><span>可以回看吗？</span><span>+</span></button><div class="k-acc-b"><p>每场直播结束后一天内上传回放。</p></div></div><div class="k-acc-i"><button class="k-acc-h" type="button"><span>能退款吗？</span><span>+</span></button><div class="k-acc-b"><p>开课 7 天内可以申请（示例条款）。</p></div></div></div></div>
+</article>
+<h2 class="group">长表格</h2>
+<article class="sp" data-name="固定表头" data-en="Fixed Header" data-demo="fixedHead" data-hint="滚动表格" data-use="数据再长，列名都钉在最上面，不用翻回去对。" data-prompt="做固定表头（Fixed Header）：长表格滚动时 thead 用 position: sticky 固定在顶部，内容滚到表头下面时表头出现一条阴影。">
+  <div class="stage"><div class="k-tb-w"><div class="k-sc" tabindex="0" aria-label="滚动表格"><table class="k-tb"><thead><tr><th>学员</th><th>进度</th><th class="num">作业</th></tr></thead><tbody></tbody></table></div></div></div>
+</article>
+<article class="sp" data-name="斑马纹" data-en="Zebra Stripes" data-demo="zebra" data-hint="点按钮对比" data-use="隔行换个底色，眼睛不容易看错行。金额靠右对齐，大小才好比较。" data-prompt="给表格加斑马纹（Zebra Stripes）：奇偶行深浅交替，金额列靠右对齐并用等宽数字，方便上下比较大小。">
+  <div class="stage"><div class="k-zb-box"><button class="btn line" type="button" aria-pressed="true">关掉斑马纹</button><div class="k-tb-w k-zb"><table class="k-tb"><thead><tr><th>项目</th><th class="num">金额（元）</th></tr></thead><tbody><tr><td>工作坊</td><td class="num">12,800.00</td></tr><tr><td>录播课</td><td class="num">3,960.50</td></tr><tr><td>企业内训</td><td class="num">86,000.00</td></tr><tr><td>答疑陪跑</td><td class="num">720.00</td></tr><tr><td>教材</td><td class="num">1,245.00</td></tr></tbody></table></div></div></div>
+</article>
+<article class="sp" data-name="排序和筛选" data-en="Sort & Filter" data-demo="sortFilter" data-hint="点表头或筛选项" data-use="点表头换顺序，点漏斗缩小范围，数据多时必备。" data-prompt="给表格加排序和筛选（Sort & Filter）：表头带小箭头，点击切换升序降序、箭头旋转；上方漏斗图标旁放筛选标签，点一下只显示符合条件的行。">
+  <div class="stage"><div class="k-tb-w"><div class="k-fil"><span aria-hidden="true">⏷ 筛选</span><button type="button" aria-pressed="true" data-f="全部">全部</button><button type="button" aria-pressed="false" data-f="进阶">进阶</button><button type="button" aria-pressed="false" data-f="入门">入门</button></div><table class="k-tb"><thead><tr><th>学员</th><th>班级</th><th class="num"><button class="k-sort" type="button" data-dir="desc">得分<i>▲</i></button></th></tr></thead><tbody></tbody></table></div></div>
+</article>
+<article class="sp" data-name="行内操作" data-en="Row Actions" data-demo="rowActs" data-hint="移到某一行" data-use="编辑、删除收在行尾，光标经过才露出来，表格看着清爽。" data-prompt="做行内操作（Row Actions）：编辑、删除按钮放在每行末尾，平时隐藏，鼠标移到这一行时淡入并左移 7px；手机上始终显示。">
+  <div class="stage"><div class="k-rows"><div class="k-row"><span>第 1 讲：认识按钮</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 2 讲：弹窗怎么选</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 3 讲：16 种动效</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div><div class="k-row"><span>第 4 讲：表单</span><div class="k-acts"><button type="button">编辑</button><button class="del" type="button">删除</button></div></div></div></div>
+</article></div><p class="note">提示词里的时长等具体参数是建议值，可以按需调整。演示里的课程、人名、价格和文件都是虚构示例。</p><div class="pager"><a href="05-loading.html">← 加载与错误页</a><a href="index.html">回目录 →</a></div></main><script>window.demo={};
+// Plays the hover state on a timer until the viewer takes over.
+demo.pulseShow = (stage, U) => {
+  const card = stage.querySelector('.c');
+  U.auto(stage, () => card.classList.toggle('show'), 1900);
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; card.classList.remove('show'); });
+};
+demo.profile = (stage, U) => {
+  demo.pulseShow(stage, U);
+  const b = stage.querySelector('.c-follow');
+  b.addEventListener('click', () => {
+    const done = b.classList.toggle('done');
+    b.textContent = done ? '已关注' : '关注';
+  });
+};
+demo.stat = (stage, U) => {
+  const card = stage.querySelector('.c-stat');
+  const num = card.querySelector('.num');
+  const line = card.querySelector('.sl');
+  const run = () => {
+    card.classList.remove('go');
+    void card.offsetWidth;
+    card.classList.add('go');
+    U.tween(1500, (p) => {
+      const e = U.easeOut(p);
+      num.textContent = Math.round(2486 * e).toLocaleString('en-US');
+      line.style.strokeDashoffset = 1 - e;
+    });
+  };
+  stage.addEventListener('inview', run);
+  U.loop(stage, run, 5200);
+};
+demo.pricing = (stage, U) => {
+  const tog = stage.querySelector('.c-pr-tog button');
+  const nums = [...stage.querySelectorAll('.c-plan b')];
+  const set = (yearly) => {
+    tog.setAttribute('aria-pressed', String(yearly));
+    nums.forEach((n) => {
+      const from = +n.textContent;
+      const to = +(yearly ? n.dataset.y : n.dataset.m);
+      U.tween(450, (p) => { n.textContent = Math.round(from + (to - from) * U.easeOut(p)); });
+    });
+  };
+  tog.addEventListener('click', () => set(tog.getAttribute('aria-pressed') !== 'true'));
+  U.auto(stage, () => set(tog.getAttribute('aria-pressed') !== 'true'), 2600);
+};
+demo.stack = (stage, U) => {
+  const box = stage.querySelector('.c-stack');
+  const TITLES = ['按钮与开关', '弹窗', '动效', '表单'];
+  const cards = TITLES.map((t, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'c-st'; b.textContent = t; b.dataset.c = i;
+    box.appendChild(b);
+    return b;
+  });
+  const order = () => cards.forEach((c, i) => c.style.setProperty('--o', i));
+  order();
+  let busy = false;
+  const next = () => {
+    if (busy) return;
+    busy = true;
+    const top = cards[0];
+    top.classList.add('away');
+    setTimeout(() => {
+      cards.push(cards.shift());
+      top.style.transition = 'none';
+      top.classList.remove('away');
+      order();
+      void top.offsetWidth;
+      top.style.transition = '';
+      busy = false;
+    }, 380);
+  };
+  box.addEventListener('click', next);
+  U.auto(stage, next, 2200);
+};
+demo.swipe = (stage, U) => {
+  const box = stage.querySelector('.c-swipe-box');
+  const THRESHOLD = 90;
+  const SWIPES = ['提示词入门', '做一个网页', '自动化报表', '数据看板'];
+  let n = 0;
+  const make = () => {
+    const c = document.createElement('div');
+    c.className = 'c-sw';
+    c.dataset.c = n % 3;
+    c.innerHTML = '<span class="c-stamp y">想学</span><span class="c-stamp n">跳过</span>';
+    const title = document.createElement('b');
+    title.textContent = SWIPES[n++ % SWIPES.length];
+    c.appendChild(title);
+    wire(c);
+    box.prepend(c);
+    return c;
+  };
+  const place = (c, x) => {
+    c.style.transform = 'translateX(' + x + 'px) rotate(' + x * .07 + 'deg)';
+    c.querySelector('.y').style.opacity = Math.max(0, Math.min(1, x / THRESHOLD));
+    c.querySelector('.n').style.opacity = Math.max(0, Math.min(1, -x / THRESHOLD));
+  };
+  const fly = (c, dir) => {
+    c.classList.add('fly');
+    place(c, dir * 320);
+    setTimeout(() => { c.remove(); make(); }, 360);
+  };
+  function wire(c) {
+    let from = null, x = 0;
+    c.addEventListener('pointerdown', (e) => { from = e.clientX; c.setPointerCapture(e.pointerId); c.classList.remove('back'); });
+    c.addEventListener('pointermove', (e) => { if (from !== null) { x = e.clientX - from; place(c, x); } });
+    const up = () => {
+      if (from === null) return;
+      from = null;
+      if (Math.abs(x) > THRESHOLD) fly(c, Math.sign(x));
+      else { c.classList.add('back'); place(c, 0); }
+      x = 0;
+    };
+    c.addEventListener('pointerup', up);
+    c.addEventListener('pointercancel', up);
+  }
+  make(); make();
+  let side = 1;
+  U.auto(stage, () => {
+    const top = box.lastElementChild;
+    if (!top || top.classList.contains('fly')) return;
+    const dir = side; side = -side;
+    U.tween(600, (p) => place(top, dir * 110 * U.easeOut(p)), () => fly(top, dir));
+  }, 3200);
+};
+demo.carousel = (stage, U) => {
+  const track = stage.querySelector('.k-car-t');
+  const dots = [...stage.querySelectorAll('.k-dots i')];
+  const N = dots.length;
+  let i = 0;
+  const go = (n) => {
+    i = (n + N) % N;
+    track.style.transform = 'translateX(' + (-100 * i) + '%)';
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  stage.querySelector('.k-arr.l').addEventListener('click', () => go(i - 1));
+  stage.querySelector('.k-arr.r').addEventListener('click', () => go(i + 1));
+  U.auto(stage, () => go(i + 1), 3000);
+};
+demo.flipCard = (stage, U) => {
+  U.auto(stage, () => stage.classList.toggle('on'), 2400);
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; stage.classList.remove('on'); });
+};
+demo.timeline = (stage, U) => {
+  const box = stage.querySelector('.k-tl');
+  const items = [...box.children];
+  let n = 0;
+  const step = () => {
+    n = n >= items.length ? 1 : n + 1;
+    items.forEach((li, i) => li.classList.toggle('on', i < n));
+    box.style.setProperty('--h', ((n - 1) / (items.length - 1) * 100) + '%');
+  };
+  step();
+  U.loop(stage, step, 1100);
+};
+demo.avatars = (stage, U) => {
+  const box = stage.querySelector('.k-av');
+  U.auto(stage, () => box.classList.toggle('show'), 1800);
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; box.classList.remove('show'); });
+};
+demo.badge = (stage, U) => {
+  const n = stage.querySelector('.k-bd-n');
+  const STEPS = [3, 12, 58, 99, 128];
+  let i = 0;
+  U.loop(stage, () => {
+    i = (i + 1) % STEPS.length;
+    n.textContent = STEPS[i] > 99 ? '99+' : STEPS[i];
+    n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop');
+  }, 1300);
+};
+demo.accordion = (stage) => {
+  const items = [...stage.querySelectorAll('.k-acc-i')];
+  items.forEach((it) => it.querySelector('.k-acc-h').addEventListener('click', () => {
+    const open = it.classList.contains('open');
+    items.forEach((x) => x.classList.remove('open'));
+    if (!open) it.classList.add('open');
+  }));
+};
+demo.fixedHead = (stage, U) => {
+  const NAMES = ['林小满', '周舟', '陈禾', '吴迪', '郑远', '何晴', '宋河', '唐果', '许诺', '程风', '叶子', '方圆'];
+  const box = stage.querySelector('.k-sc');
+  const body = stage.querySelector('tbody');
+  NAMES.forEach((name, i) => {
+    const tr = document.createElement('tr');
+    const cells = [name, '第 ' + (i % 6 + 1) + ' 讲', String(i * 3 % 10 + 1)];
+    cells.forEach((text, k) => { const td = document.createElement('td'); td.textContent = text; if (k === 2) td.className = 'num'; tr.appendChild(td); });
+    body.appendChild(tr);
+  });
+  box.addEventListener('scroll', () => box.classList.toggle('scrolled', box.scrollTop > 0));
+  let pos = 0, dir = 1;
+  U.frame(stage, () => {
+    if (stage.dataset.touched) return;
+    const max = box.scrollHeight - box.clientHeight;
+    pos += dir * .5;
+    if (pos >= max) { pos = max; dir = -1; } else if (pos <= 0) { pos = 0; dir = 1; }
+    box.scrollTop = pos;
+  });
+};
+demo.sortFilter = (stage) => {
+  const ROWS = [['林小满', '进阶', 92], ['周舟', '入门', 78], ['陈禾', '进阶', 85], ['吴迪', '入门', 66], ['郑远', '进阶', 71]];
+  const body = stage.querySelector('tbody');
+  const sortBtn = stage.querySelector('.k-sort');
+  const filters = [...stage.querySelectorAll('[data-f]')];
+  let filter = '全部';
+  const render = () => {
+    const dir = sortBtn.dataset.dir === 'desc' ? -1 : 1;
+    const rows = ROWS.filter((r) => filter === '全部' || r[1] === filter).sort((a, b) => (a[2] - b[2]) * dir);
+    body.replaceChildren();
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      r.forEach((text, k) => { const td = document.createElement('td'); td.textContent = text; if (k === 2) td.className = 'num'; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+  };
+  sortBtn.addEventListener('click', () => { sortBtn.dataset.dir = sortBtn.dataset.dir === 'desc' ? 'asc' : 'desc'; render(); });
+  filters.forEach((b) => b.addEventListener('click', () => {
+    filter = b.dataset.f;
+    filters.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  }));
+  render();
+};
+demo.rowActs = (stage, U) => {
+  const rows = [...stage.querySelectorAll('.k-row')];
+  let i = 0;
+  rows.forEach((r) => r.querySelector('.del').addEventListener('click', () => {
+    r.classList.add('gone');
+    setTimeout(() => r.classList.remove('gone'), 1600); // Sample data: bring the row back so the demo stays usable.
+  }));
+  stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; rows.forEach((r) => r.classList.remove('show')); });
+  U.auto(stage, () => { rows.forEach((r, k) => r.classList.toggle('show', k === i)); i = (i + 1) % rows.length; }, 1300);
+};
+demo.zebra = (stage) => {
+  const box = stage.querySelector('.k-zb-box');
+  const btn = box.querySelector('.btn');
+  btn.addEventListener('click', () => {
+    const off = box.classList.toggle('off');
+    btn.textContent = off ? '打开斑马纹' : '关掉斑马纹';
+    btn.setAttribute('aria-pressed', String(!off));
+  });
+};
+demo.cardList = (stage, U) => {
+  const box = stage.querySelector('.k-cl');
+  const btn = box.querySelector('.btn');
+  const flip = () => { const list = box.classList.toggle('list'); btn.textContent = list ? '切换成卡片' : '切换成列表'; };
+  btn.addEventListener('click', flip);
+  U.auto(stage, flip, 2600);
+};
+</script><script>// Shared page shell: renders specimen captions, copy buttons, pause control and demo helpers.
+(function () {
+  const isFrozen = (stage) =>
+    document.body.classList.contains('paused') || stage.closest('.sp').classList.contains('off');
+
+  const U = {
+    // Repeats while the specimen is on screen and motion is not paused.
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    // Same as loop, but stops for good once the viewer has interacted with this stage.
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) {
+      const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - start) / ms);
+        fn(p);
+        if (p < 1) requestAnimationFrame(step); else if (done) done();
+      };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+
+  const cards = [...document.querySelectorAll('.sp')];
+  const toc = document.querySelector('.toc');
+
+  function addText(parent, tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    el.textContent = text;
+    parent.appendChild(el);
+    return el;
+  }
+
+  async function copyPrompt(btn, promptEl) {
+    try {
+      await navigator.clipboard.writeText(promptEl.textContent);
+      btn.textContent = '已复制';
+    } catch (err) {
+      // Clipboard refused (some embedded views): select the text so the viewer can copy it by hand.
+      const range = document.createRange();
+      range.selectNodeContents(promptEl);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = '已选中';
+    }
+    setTimeout(() => { btn.textContent = '复制'; }, 1600);
+  }
+
+  cards.forEach((card, i) => {
+    const d = card.dataset;
+    card.id = 's' + (i + 1);
+    const no = String(i + 1).padStart(2, '0');
+    const meta = addText(card, 'div', 'meta', '');
+    const head = addText(meta, 'div', 'meta-h', '');
+    addText(head, 'span', 'no', no);
+    addText(head, 'h3', '', d.name);
+    addText(head, 'span', 'en', d.en);
+    addText(meta, 'p', 'use', d.use);
+    if (d.params) addText(meta, 'div', 'params', d.params);
+    const pr = addText(meta, 'div', 'pr', '');
+    addText(pr, 'b', '', '一句话让 AI 做');
+    const promptEl = addText(pr, 'p', '', d.prompt);
+    const btn = addText(pr, 'button', '', '复制');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '复制「' + d.name + '」的提示词');
+    btn.addEventListener('click', () => copyPrompt(btn, promptEl));
+    const stage = card.querySelector('.stage');
+    if (d.hint) addText(stage, 'span', 'hint', d.hint);
+    if (toc) { const a = addText(toc, 'a', '', d.name); a.href = '#' + card.id; }
+  });
+
+  // Delegated open / close for popup-style demos.
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    const stage = t.closest('.stage');
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  // Esc closes the popup in the stage used last, even if a click left focus on the page body.
+  let lastStage = null;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lastStage) lastStage.classList.remove('on');
+  });
+  const markTouched = (e) => {
+    const stage = e.target.closest && e.target.closest('.stage');
+    if (stage) { stage.dataset.touched = '1'; lastStage = stage; }
+  };
+  document.addEventListener('pointerdown', markTouched, true);
+  document.addEventListener('focusin', markTouched, true);
+
+  // On phones the tab row scrolls sideways: keep the current page's tab in view.
+  const tabs = document.querySelector('.tabs');
+  const currentTab = tabs.querySelector('[aria-current]');
+  if (currentTab) tabs.scrollLeft = currentTab.offsetLeft - tabs.offsetLeft - 12;
+
+  // Pause control; viewers who asked for reduced motion start paused.
+  const pause = document.getElementById('pauseAll');
+  function setPaused(v) {
+    document.body.classList.toggle('paused', v);
+    pause.textContent = v ? '继续动效' : '暂停动效';
+    pause.setAttribute('aria-pressed', String(v));
+  }
+  pause.addEventListener('click', () => setPaused(!document.body.classList.contains('paused')));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) setPaused(true);
+
+  // Run page demos, then watch visibility: pause off-screen specimens, auto-open on first view.
+  cards.forEach((card) => {
+    const stage = card.querySelector('.stage');
+    const fn = window.demo[card.dataset.demo];
+    if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+    if (fn) fn(stage, U);
+  });
+  const seen = new WeakSet();
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      en.target.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen.has(en.target)) return;
+      seen.add(en.target);
+      const stage = en.target.querySelector('.stage');
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (en.target.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 });
+  cards.forEach((c) => io.observe(c));
+})();
+</script></body></html>

@@ -1,0 +1,138 @@
+<!doctype html>
+<!--
+名称：排序和筛选（Sort & Filter）
+编号：06-cards/22
+什么时候用：点表头换顺序，点漏斗缩小范围，数据多时必备。
+一句话提示词：给表格加排序和筛选（Sort & Filter）：表头带小箭头，点击切换升序降序、箭头旋转；上方漏斗图标旁放筛选标签，点一下只显示符合条件的行。
+操作提示：点表头或筛选项
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>排序和筛选</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.k-tb-w { width: min(92%, 320px); background: var(--surface); border-radius: 11px; box-shadow: 0 3px 11px var(--shadow); overflow: hidden; }
+.k-tb { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.k-tb th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px; padding: 8px 11px; background: var(--surface); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.k-tb td { padding: 7px 11px; border-bottom: 1px solid var(--line); }
+.k-tb tr:last-child td { border-bottom: 0; }
+.k-tb .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.k-sort { border: 0; background: none; cursor: pointer; font: inherit; color: inherit; padding: 0; display: inline-flex; gap: 4px; align-items: center; }
+.k-sort i { font-style: normal; color: var(--line); transition: transform .2s, color .2s; display: inline-block; }
+.k-sort[data-dir] i { color: var(--accent); }
+.k-sort[data-dir="desc"] i { transform: rotate(180deg); }
+.k-fil { display: flex; gap: 6px; padding: 7px 10px; align-items: center; font-size: 13px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.k-fil button { padding: 1px 9px; border-radius: 11px; border: 1px solid var(--line); background: none; cursor: pointer; font-size: 12.5px; transition: background .15s, color .15s; }
+.k-fil button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.k-tb tbody tr { animation: k-row .22s ease-out; }
+@keyframes k-row { from { opacity: 0; transform: translateY(-5px); } }
+</style></head>
+<body><article class="sp" data-name="排序和筛选" data-en="Sort & Filter" data-demo="sortFilter" data-hint="点表头或筛选项" data-use="点表头换顺序，点漏斗缩小范围，数据多时必备。" data-prompt="给表格加排序和筛选（Sort & Filter）：表头带小箭头，点击切换升序降序、箭头旋转；上方漏斗图标旁放筛选标签，点一下只显示符合条件的行。"><div class="stage"><div class="k-tb-w"><div class="k-fil"><span aria-hidden="true">⏷ 筛选</span><button type="button" aria-pressed="true" data-f="全部">全部</button><button type="button" aria-pressed="false" data-f="进阶">进阶</button><button type="button" aria-pressed="false" data-f="入门">入门</button></div><table class="k-tb"><thead><tr><th>学员</th><th>班级</th><th class="num"><button class="k-sort" type="button" data-dir="desc">得分<i>▲</i></button></th></tr></thead><tbody></tbody></table></div></div></article>
+<script>window.demo = {};
+demo.sortFilter = (stage) => {
+  const ROWS = [['林小满', '进阶', 92], ['周舟', '入门', 78], ['陈禾', '进阶', 85], ['吴迪', '入门', 66], ['郑远', '进阶', 71]];
+  const body = stage.querySelector('tbody');
+  const sortBtn = stage.querySelector('.k-sort');
+  const filters = [...stage.querySelectorAll('[data-f]')];
+  let filter = '全部';
+  const render = () => {
+    const dir = sortBtn.dataset.dir === 'desc' ? -1 : 1;
+    const rows = ROWS.filter((r) => filter === '全部' || r[1] === filter).sort((a, b) => (a[2] - b[2]) * dir);
+    body.replaceChildren();
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      r.forEach((text, k) => { const td = document.createElement('td'); td.textContent = text; if (k === 2) td.className = 'num'; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+  };
+  sortBtn.addEventListener('click', () => { sortBtn.dataset.dir = sortBtn.dataset.dir === 'desc' ? 'asc' : 'desc'; render(); });
+  filters.forEach((b) => b.addEventListener('click', () => {
+    filter = b.dataset.f;
+    filters.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  }));
+  render();
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

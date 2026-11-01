@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+名称：统计卡片（Stat Card）
+编号：06-cards/06
+什么时候用：一个醒目的大数字，加上涨跌方向，后台首页的常客。
+一句话提示词：做一个统计卡片（Stat Card）：大号数字从 0 滚动到目标值，下面是上升箭头和环比涨幅，底部迷你折线图同步画出，末端加圆点。
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>统计卡片</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.c { width: min(84%, 260px); background: var(--surface); border-radius: 14px; box-shadow: 0 4px 14px var(--shadow); overflow: hidden; }
+.c-pad { padding: 13px 15px; }
+.c h4 { margin: 0 0 3px; font-size: 16px; line-height: 1.35; }
+.c p { margin: 0; font-size: 13px; color: var(--muted); }
+.c-stat .lab { font-size: 13px; color: var(--muted); }
+.c-stat .num { font: 700 34px/1.25 var(--mono); font-variant-numeric: tabular-nums; }
+.c-stat .up { font-size: 13px; color: var(--ok); font-weight: 600; }
+.c-stat svg { display: block; width: 100%; height: 70px; margin-top: 7px; }
+.c-stat .sl { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.c-stat .sa { fill: var(--soft); opacity: 0; transition: opacity .6s .9s; }
+.c-stat.go .sa { opacity: .8; }
+.c-stat .pt { fill: var(--accent); opacity: 0; transition: opacity .2s 1.3s; }
+.c-stat.go .pt { opacity: 1; }
+</style></head>
+<body><article class="sp" data-name="统计卡片" data-en="Stat Card" data-demo="stat" data-use="一个醒目的大数字，加上涨跌方向，后台首页的常客。" data-prompt="做一个统计卡片（Stat Card）：大号数字从 0 滚动到目标值，下面是上升箭头和环比涨幅，底部迷你折线图同步画出，末端加圆点。"><div class="stage"><div class="c c-pad c-stat"><div class="lab">本周完课人数（示例）</div><div class="num">0</div><div class="up">↑ 18% 比上周</div><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path class="sa" d="M4 58 L36 48 L68 52 L100 34 L132 38 L164 20 L196 10 V70 H4 Z"/><path class="sl" pathLength="1" d="M4 58 L36 48 L68 52 L100 34 L132 38 L164 20 L196 10"/><circle class="pt" cx="196" cy="10" r="3.5"/></svg></div></div></article>
+<script>window.demo = {};
+demo.stat = (stage, U) => {
+  const card = stage.querySelector('.c-stat');
+  const num = card.querySelector('.num');
+  const line = card.querySelector('.sl');
+  const run = () => {
+    card.classList.remove('go');
+    void card.offsetWidth;
+    card.classList.add('go');
+    U.tween(1500, (p) => {
+      const e = U.easeOut(p);
+      num.textContent = Math.round(2486 * e).toLocaleString('en-US');
+      line.style.strokeDashoffset = 1 - e;
+    });
+  };
+  stage.addEventListener('inview', run);
+  U.loop(stage, run, 5200);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

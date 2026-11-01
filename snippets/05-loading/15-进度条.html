@@ -1,0 +1,121 @@
+<!doctype html>
+<!--
+名称：进度条（Progress Bar）
+编号：05-loading/15
+什么时候用：上传大文件这种耗时的活用它，完成多少、还差多久都看得到。
+一句话提示词：做一个进度条（Progress Bar）：斜条纹底色持续向右流动，上方显示任务名和百分比，下方显示已传大小和剩余时间，宽度随真实进度平滑增长。
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>进度条</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.l-pg { width: min(82%, 260px); display: grid; gap: 7px; }
+.l-pg-h { display: flex; justify-content: space-between; font-size: 13px; }
+.l-pg-h b { font: 600 13px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.l-track { height: 11px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.l-fill { height: 100%; width: 0; border-radius: 6px; background: repeating-linear-gradient(-45deg, var(--accent) 0 9px, var(--accent-deep) 9px 18px); background-size: 200% 100%; animation: l-stripes 1.1s linear infinite; }
+.l-pg-f { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+@keyframes l-stripes { to { background-position: 25.5px 0; } }
+</style></head>
+<body><article class="sp" data-name="进度条" data-en="Progress Bar" data-demo="bar" data-use="上传大文件这种耗时的活用它，完成多少、还差多久都看得到。" data-prompt="做一个进度条（Progress Bar）：斜条纹底色持续向右流动，上方显示任务名和百分比，下方显示已传大小和剩余时间，宽度随真实进度平滑增长。"><div class="stage"><div class="l-pg"><div class="l-pg-h"><span>上传课程视频</span><b>0%</b></div><div class="l-track"><div class="l-fill"></div></div><div class="l-pg-f"><span class="sz"></span><span class="eta"></span></div></div></div></article>
+<script>window.demo = {};
+demo.bar = (stage, U) => {
+  const fill = stage.querySelector('.l-fill');
+  const out = stage.querySelector('.l-pg-h b');
+  const size = stage.querySelector('.sz');
+  const eta = stage.querySelector('.eta');
+  const TOTAL_MB = 480;
+  let v = 0, hold = 0;
+  U.loop(stage, () => {
+    if (hold > 0) { hold--; if (!hold) v = 0; }
+    else { v = Math.min(100, v + 1 + Math.random() * 3); if (v === 100) hold = 8; }
+    fill.style.width = v + '%';
+    out.textContent = Math.round(v) + '%';
+    size.textContent = Math.round(TOTAL_MB * v / 100) + ' / ' + TOTAL_MB + ' MB';
+    eta.textContent = v === 100 ? '已完成' : '还剩约 ' + Math.ceil((100 - v) / 15) + ' 秒';
+  }, 160);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

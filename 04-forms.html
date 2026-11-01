@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="claude:viewport-fit-sides" content="cover"><title>表单动效库</title><style>/* 布局：顶部主题导航 + 名词索引 + 标本网格；每个标本 = 活的演示 + 名称 + 用途 + 一句话提示词 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+.home { font-weight: 800; text-decoration: none; white-space: nowrap; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+.tabs a { padding: 4px 10px; border-radius: 8px; text-decoration: none; white-space: nowrap; color: var(--muted); font-size: 14px; }
+.tabs a:hover { background: var(--soft); color: var(--ink); }
+.tabs a[aria-current] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.pause { flex: none; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+.pause:hover { background: var(--soft); }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 34px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.hero { display: grid; gap: 10px; margin-bottom: 26px; }
+.hero h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; font-weight: 800; text-wrap: balance; }
+.hero h1 small { font: 500 .42em var(--mono); color: var(--muted); margin-left: 10px; white-space: nowrap; }
+.hero > p { margin: 0; max-width: 42em; color: var(--muted); }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.toc a { border: 1px solid var(--line); border-radius: 999px; padding: 1px 11px; font-size: 13px; text-decoration: none; background: var(--surface); }
+.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+.group { grid-column: 1 / -1; margin: 18px 0 0; font-size: 19px; font-weight: 700; }
+.group:first-child { margin-top: 0; }
+.sp { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; scroll-margin-top: 72px; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); border-bottom: 1px solid var(--line); }
+.hint { position: absolute; left: 9px; bottom: 7px; z-index: 30; font-size: 12px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--line); padding: 0 7px; border-radius: 6px; pointer-events: none; }
+[data-name="下拉刷新"] .hint, [data-name="无限滚动"] .hint, [data-name="滚动出现"] .hint, [data-name="固定表头"] .hint { left: auto; right: 9px; }
+.advice { grid-column: 1 / -1; display: grid; gap: 4px; padding: 13px 16px; background: var(--soft); border-radius: 12px; font-size: 14.5px; }
+.advice ul { display: flex; flex-wrap: wrap; gap: 3px 24px; margin: 0; padding: 0; list-style: none; }
+.advice strong { color: var(--accent); }
+.meta { display: flex; flex-direction: column; gap: 8px; padding: 13px 15px 15px; flex: 1; }
+.meta-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; }
+.no { font: 600 12px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.meta h3 { margin: 0; font-size: 17px; line-height: 1.3; }
+.en { font: 12px var(--mono); color: var(--muted); }
+.use { margin: 0; font-size: 14px; color: var(--muted); }
+.params { font: 12px var(--mono); color: var(--accent); }
+.pr { margin-top: auto; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: start; background: var(--stage); border-radius: 9px; padding: 9px 11px; }
+.pr b { grid-column: 1; font-size: 12px; font-weight: 600; color: var(--accent); }
+.pr p { grid-column: 1; margin: 0; font-size: 13.5px; line-height: 1.6; min-width: 0; }
+.pr button { grid-column: 2; grid-row: 1 / 3; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 2px 9px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.pr button:hover { border-color: var(--accent); color: var(--accent); }
+.note { margin: 34px 0 0; font-size: 13px; color: var(--muted); max-width: 52em; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; font-weight: 600; }
+.pager a { text-decoration: none; color: var(--accent); }
+.pager a:hover { text-decoration: underline; }
+
+/* 演示共用的小零件 */
+.btn { border: 0; border-radius: 10px; padding: 10px 20px; background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; transition: transform .15s, box-shadow .15s, background .2s, color .2s; }
+.btn.line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.btn.sm { padding: 5px 13px; font-size: 13px; border-radius: 8px; }
+.fake { position: absolute; inset: 0; z-index: -1; padding: 14px; display: grid; align-content: start; gap: 9px; }
+.fake i { display: block; height: 10px; border-radius: 5px; background: var(--line); opacity: .55; }
+.fake i:nth-child(1) { width: 42%; height: 15px; }
+.fake i:nth-child(2) { width: 92%; } .fake i:nth-child(3) { width: 78%; } .fake i:nth-child(4) { width: 86%; }
+.fake i:nth-child(5) { width: 60%; } .fake i:nth-child(6) { width: 88%; } .fake i:nth-child(7) { width: 70%; }
+.fake i:nth-child(8) { width: 82%; } .fake i:nth-child(9) { width: 52%; }
+
+body.paused .stage *, body.paused .stage *::before, body.paused .stage *::after,
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+
+/* 目录页 */
+.rows { display: grid; gap: 12px; }
+.row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 18px; align-items: center; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; text-decoration: none; transition: border-color .2s, transform .2s; }
+.row:hover { border-color: var(--accent); transform: translateX(3px); }
+.row h2 { margin: 0; font-size: 21px; line-height: 1.3; }
+.row h2 small { font: 500 13px var(--mono); color: var(--accent); margin-left: 6px; }
+.row p { margin: 3px 0 0; font-size: 13.5px; color: var(--muted); }
+.ic { width: 96px; height: 72px; position: relative; display: grid; place-items: center; background: var(--stage); border-radius: 10px; overflow: hidden; }
+.ic-sw { width: 44px; height: 24px; border-radius: 12px; background: var(--soft); position: relative; animation: ic-sw-t 2.4s infinite; }
+.ic-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px var(--shadow); animation: ic-sw-k 2.4s infinite; }
+@keyframes ic-sw-t { 0%, 40% { background: var(--soft); } 50%, 90% { background: var(--accent); } 100% { background: var(--soft); } }
+@keyframes ic-sw-k { 0%, 40% { transform: none; } 50%, 90% { transform: translateX(20px); } 100% { transform: none; } }
+.ic-md { width: 50px; height: 34px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 5px 12px var(--shadow); animation: ic-md 2.4s infinite cubic-bezier(.2, 1.3, .4, 1); }
+@keyframes ic-md { 0% { transform: scale(.5); opacity: 0; } 25%, 80% { transform: none; opacity: 1; } 100% { transform: scale(.8); opacity: 0; } }
+.ic-ball { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); animation: ic-ball .8s infinite alternate cubic-bezier(.3, 0, .7, .3); }
+@keyframes ic-ball { from { transform: translateY(-20px); } to { transform: translateY(18px); } }
+.ic-in { width: 66px; height: 26px; border: 1.5px solid var(--accent); border-radius: 6px; position: relative; background: var(--surface); }
+.ic-in::after { content: ""; position: absolute; left: 8px; top: 5px; width: 2px; height: 13px; background: var(--ink); animation: ic-in 1s steps(2) infinite; }
+@keyframes ic-in { 50% { opacity: 0; } }
+.ic-sp { width: 32px; height: 32px; border-radius: 50%; border: 4px solid var(--soft); border-top-color: var(--accent); animation: ic-sp .9s linear infinite; }
+@keyframes ic-sp { to { transform: rotate(360deg); } }
+.ic-cd { width: 40px; height: 48px; border-radius: 6px; background: linear-gradient(150deg, var(--art3), var(--art1)); animation: ic-cd 2.4s ease-in-out infinite alternate; }
+@keyframes ic-cd { from { transform: perspective(200px) rotateY(-28deg); } to { transform: perspective(200px) rotateY(28deg); } }
+@media (max-width: 560px) {
+  .home { display: none; }
+  .row { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .ic { width: 64px; height: 60px; transform-origin: center; }
+  .ic > * { scale: .78; }
+}
+
+:root { --stage-h: 290px; }
+.f-col { width: min(84%, 270px); display: grid; gap: 14px; }
+.f-field { position: relative; }
+.f-input { width: 100%; padding: 12px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); outline: none; transition: border-color .2s, box-shadow .2s; }
+.f-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+
+.f-float .f-input { padding-top: 19px; padding-bottom: 6px; }
+.f-float label { position: absolute; left: 13px; top: 13px; color: var(--muted); pointer-events: none; transform-origin: 0 0; transition: transform .18s, color .18s; }
+.f-float .f-input:focus + label, .f-float .f-input:not(:placeholder-shown) + label { transform: translateY(-8px) scale(.74); color: var(--accent); }
+
+.f-pw { padding-right: 56px; }
+.f-eye { position: absolute; right: 7px; top: 7px; border: 0; background: none; cursor: pointer; font-size: 13px; color: var(--accent); padding: 4px 6px; }
+.f-str { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.f-str i { height: 5px; border-radius: 3px; background: var(--line); transition: background .25s; }
+.f-str[data-n="1"] i:nth-child(-n+1) { background: var(--err); }
+.f-str[data-n="2"] i:nth-child(-n+2) { background: var(--gold); }
+.f-str[data-n="3"] i:nth-child(-n+3) { background: var(--gold); }
+.f-str[data-n="4"] i { background: var(--ok); }
+.f-small { font-size: 13px; color: var(--muted); min-height: 1.6em; }
+
+.f-val.bad .f-input { border-color: var(--err); }
+.f-val.good .f-input { border-color: var(--ok); }
+.f-val.shake { animation: f-shake .36s; }
+@keyframes f-shake { 25% { transform: translateX(-7px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-3px); } }
+.f-mark { position: absolute; right: 11px; top: 12px; font-weight: 700; color: var(--ok); transform: scale(0); transition: transform .25s cubic-bezier(.2, 1.6, .4, 1); }
+.f-val.good .f-mark { transform: none; }
+.f-msg { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .2s; font-size: 13px; color: var(--err); }
+.f-msg span { overflow: hidden; }
+.f-val.bad ~ .f-msg { grid-template-rows: 1fr; }
+
+.f-search { position: relative; width: 170px; transition: width .2s cubic-bezier(.2, .9, .3, 1); }
+.f-search:focus-within, .f-search.has { width: min(86%, 270px); }
+.f-search .f-input { border-radius: 22px; padding: 9px 34px; }
+.f-search svg { position: absolute; left: 12px; top: 12px; width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 2.4; stroke-linecap: round; }
+.f-clear { position: absolute; right: 7px; top: 7px; width: 25px; height: 25px; border: 0; border-radius: 50%; background: var(--soft); cursor: pointer; font-size: 13px; line-height: 1; transform: scale(0); transition: transform .2s cubic-bezier(.2, 1.6, .4, 1); }
+.f-search.has .f-clear { transform: none; }
+
+.f-ta { resize: none; overflow: hidden; line-height: 1.6; height: 52px; transition: height .15s, border-color .2s, box-shadow .2s; display: block; }
+.f-cnt { text-align: right; font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.f-cnt.over { color: var(--err); font-weight: 700; }
+
+
+
+.f-sel { position: relative; width: min(82%, 240px); align-self: start; margin-top: 26px; }
+.f-sel-b { display: flex; justify-content: space-between; align-items: center; text-align: left; cursor: pointer; }
+.f-sel-b .chev { transition: transform .2s; color: var(--muted); }
+.on .f-sel-b .chev { transform: rotate(180deg); }
+.on .f-sel-b { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.f-list { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 4; margin: 0; padding: 5px; list-style: none; background: var(--surface); border-radius: 11px; box-shadow: 0 12px 26px var(--shadow); max-height: 170px; overflow-y: auto; }
+.f-sel .f-list { opacity: 0; visibility: hidden; transform: translateY(-7px) scaleY(.92); transform-origin: top; transition: opacity .16s, transform .16s, visibility 0s .16s; }
+.on .f-sel .f-list { opacity: 1; visibility: visible; transform: none; transition: opacity .16s, transform .16s; }
+.f-list button { display: flex; justify-content: space-between; width: 100%; border: 0; background: none; text-align: left; padding: 5px 9px; border-radius: 7px; cursor: pointer; }
+.f-list button:hover, .f-list button:focus-visible, .f-list button.act { background: var(--soft); }
+.f-list [aria-selected="true"]::after { content: "✓"; color: var(--accent); font-weight: 700; }
+.f-list mark { background: none; color: var(--accent); font-weight: 700; }
+.f-none { padding: 6px 9px; font-size: 13px; color: var(--muted); }
+
+.f-combo { position: relative; width: min(82%, 240px); align-self: start; margin-top: 26px; }
+.f-combo .f-list button { display: block; }
+.f-sel .f-list { max-height: 190px; }
+
+.f-tags { width: min(88%, 290px); display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; border: 1.5px solid var(--line); border-radius: 11px; background: var(--surface); cursor: text; transition: border-color .2s, box-shadow .2s; }
+.f-tags:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.f-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 10px; border-radius: 14px; background: var(--soft); font-size: 13px; animation: f-tag .28s cubic-bezier(.2, 1.6, .4, 1); }
+.f-tag.out { animation: f-tag-o .15s forwards; }
+@keyframes f-tag { from { transform: scale(.4); opacity: 0; } }
+@keyframes f-tag-o { to { transform: scale(.4); opacity: 0; } }
+.f-tag button { border: 0; background: none; cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 4px; color: var(--muted); }
+.f-tags input { flex: 1; min-width: 80px; border: 0; outline: 0; background: none; padding: 2px; font-size: 14px; }
+
+
+.f-rate { display: grid; justify-items: center; gap: 8px; }
+.f-stars { display: flex; gap: 2px; }
+.f-stars button { border: 0; background: none; cursor: pointer; padding: 3px; }
+.f-stars svg { display: block; width: 34px; height: 34px; fill: var(--line); transition: fill .12s, transform .12s; }
+.f-stars button.lit svg { fill: var(--gold); }
+.f-stars button:hover svg { transform: scale(1.14); }
+.f-stars button.pop svg { animation: f-star .4s calc(var(--i) * 45ms) cubic-bezier(.2, 1.7, .4, 1); }
+@keyframes f-star { 40% { transform: scale(1.4) rotate(-14deg); } }
+
+.f-cal { width: min(90%, 258px); background: var(--surface); padding: 8px 10px; border-radius: 12px; box-shadow: 0 6px 18px var(--shadow); overflow: hidden; }
+.f-cal-h { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+.f-cal-h button { border: 0; background: none; cursor: pointer; padding: 1px 9px; font-size: 16px; border-radius: 6px; }
+.f-cal-h button:hover { background: var(--soft); }
+.f-cal-g { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12.5px; }
+.f-cal-g span { color: var(--muted); font-size: 11.5px; line-height: 22px; }
+.f-cal-g button { height: 27px; border: 0; background: none; border-radius: 50%; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .12s; aspect-ratio: 1; padding: 0; justify-self: center; font-size: 12.5px; }
+.f-cal-g button:hover { background: var(--soft); }
+.f-cal-g button.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.f-cal-g button.sel { background: var(--accent); color: var(--accent-ink); animation: f-star .3s; }
+.f-cal-g.next { animation: f-cal-n .22s ease-out; } .f-cal-g.prev { animation: f-cal-p .22s ease-out; }
+@keyframes f-cal-n { from { transform: translateX(30px); opacity: 0; } }
+@keyframes f-cal-p { from { transform: translateX(-30px); opacity: 0; } }
+
+.f-up { width: min(86%, 280px); display: grid; gap: 9px; }
+.f-drop { display: block; width: 100%; padding: 22px 12px; border: 2px dashed var(--line); border-radius: 13px; text-align: center; font-size: 14px; color: var(--muted); background: transparent; cursor: pointer; transition: border-color .2s, background .2s, transform .2s; }
+.f-drop:hover, .f-drop.over { border-color: var(--accent); background: var(--soft); color: var(--ink); }
+.f-drop.over { transform: scale(1.03); }
+.f-drop b { display: block; font-size: 22px; line-height: 1.2; color: var(--accent); }
+.f-file { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; font-size: 13px; padding: 7px 10px; background: var(--surface); border-radius: 9px; animation: f-tag .3s; }
+.f-file span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-file em { font: 12px var(--mono); font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.f-file em.ok { color: var(--ok); font-weight: 700; }
+.f-file i { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.f-file i::after { content: ""; display: block; height: 100%; width: var(--w, 0%); background: var(--accent); }
+.f-otp { display: flex; gap: 6px; }
+.f-otp input { width: 38px; height: 46px; text-align: center; font: 700 19px var(--mono); border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); outline: none; transition: border-color .15s, box-shadow .15s, transform .15s; padding: 0; }
+.f-otp input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.f-otp input.has { border-color: var(--accent); }
+.f-otp.done input { border-color: var(--ok); }
+.f-otp.done input:nth-child(n) { animation: f-otp-ok .35s calc(var(--i) * 40ms); }
+@keyframes f-otp-ok { 40% { transform: translateY(-6px); } }
+.f-file .x { grid-column: 2; grid-row: 1; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; }
+.f-file.bad { box-shadow: inset 0 0 0 1px var(--err); }
+.f-file.bad em { color: var(--err); grid-column: 1 / -1; }
+
+.f-cal-g button.in { background: var(--soft); border-radius: 4px; }
+.f-cal-note { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
+
+.f-rg2 { width: min(84%, 260px); display: grid; gap: 12px; }
+.f-rg2 label { font-size: 13px; color: var(--muted); }
+.f-dual { position: relative; height: 24px; }
+.f-dual .tr { position: absolute; left: 0; right: 0; top: 8px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--line) var(--a), var(--accent) var(--a), var(--accent) var(--b), var(--line) var(--b)); }
+.f-dual input { position: absolute; inset: 0; width: 100%; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
+.f-dual input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 2px 6px var(--shadow); cursor: pointer; transition: transform .15s; }
+.f-dual input::-moz-range-thumb { pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 2px 6px var(--shadow); cursor: pointer; }
+.f-dual input:active::-webkit-slider-thumb { transform: scale(1.2); }
+.f-nums { display: grid; grid-template-columns: 1fr auto 1fr; gap: 7px; align-items: center; color: var(--muted); }
+.f-nums input { width: 100%; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); font: 14px var(--mono); }
+
+.f-cas { position: relative; width: min(90%, 290px); align-self: start; margin-top: 18px; }
+.f-cas-p { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 4; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-radius: 11px; box-shadow: 0 12px 26px var(--shadow); overflow: hidden; opacity: 0; visibility: hidden; transform: translateY(-7px); transition: opacity .15s, transform .15s, visibility 0s .15s; }
+.on .f-cas-p { opacity: 1; visibility: visible; transform: none; transition: opacity .15s, transform .15s; }
+.f-cas-c { display: grid; align-content: start; padding: 4px; min-height: 150px; border-left: 1px solid var(--line); }
+.f-cas-c:first-child { border-left: 0; }
+.f-cas-c button { display: flex; justify-content: space-between; border: 0; background: none; padding: 5px 7px; border-radius: 6px; cursor: pointer; font-size: 13px; text-align: left; animation: f-cas-in .18s ease-out; }
+.f-cas-c button:hover { background: var(--stage); }
+.f-cas-c button.act { background: var(--soft); color: var(--accent); font-weight: 600; }
+@keyframes f-cas-in { from { opacity: 0; transform: translateX(-7px); } }
+.f-cas-b { display: flex; justify-content: space-between; align-items: center; text-align: left; cursor: pointer; }
+
+.f-help { display: grid; gap: 5px; width: min(84%, 270px); }
+.f-help label { font-size: 14px; font-weight: 600; }
+.f-help small { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.f-form { width: min(84%, 270px); display: grid; gap: 10px; }
+.f-form label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+.f-form .req { color: var(--err); margin-left: 2px; display: inline-block; animation: f-req 2.4s ease-in-out infinite; }
+@keyframes f-req { 0%, 70%, 100% { transform: none; } 80% { transform: scale(1.5); } }
+.f-form .opt { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.f-form .f-input { padding-block: 8px; }
+.f-sub { display: grid; gap: 10px; width: min(84%, 270px); }
+.f-sub .btn { height: 42px; }
+.f-sub .btn[disabled] { opacity: .75; cursor: default; }
+</style></head>
+<body><header class="top"><a class="home" href="index.html">UI 动效库</a><nav class="tabs" aria-label="主题"><a href="01-buttons.html">按钮与开关</a><a href="02-modals.html">弹窗</a><a href="03-motion.html">动效</a><a href="04-forms.html" aria-current=page>表单</a><a href="05-loading.html">加载与错误页</a><a href="06-cards.html">卡片与列表</a></nav><button class="pause" id="pauseAll" type="button" aria-pressed="false">暂停动效</button></header><main class="wrap"><section class="hero"><h1>表单<small>Form Controls · 17 种</small></h1><p>常用的表单控件，都能直接操作。先试手感，再决定让 AI 做哪一种。</p><nav class="toc" aria-label="本页条目"></nav></section><div class="grid"><h2 class="group">填内容和传文件</h2>
+<article class="sp" data-name="输入框和提交按钮" data-en="Input & Submit" data-demo="submit" data-hint="点提交" data-use="表单的最小组合，AI 不用提示也做得出来，一般不必多说。" data-prompt="做一个输入框加提交按钮：输入框聚焦时边框变橙并有浅色外圈；点提交后按钮转圈、暂时不能再点，返回结果后显示「已提交」。">
+  <div class="stage"><form class="f-sub"><input class="f-input" id="f-sb" aria-label="昵称" placeholder="你的昵称" value="林小满" autocomplete="off"><button class="btn" type="submit">提交</button></form></div>
+</article>
+<article class="sp" data-name="浮动标签" data-en="Floating Label" data-hint="点空的那一格" data-use="字段名先待在框里，一点进去就缩到框的上沿，填的时候也不会丢。" data-prompt="做一个浮动标签（Floating Label）输入框：标签默认在框内，聚焦或有内容时缩小到 74% 并移到左上方变橙色，180ms，始终保持可见。">
+  <div class="stage"><div class="f-col"><div class="f-field f-float"><input class="f-input" id="f-name" placeholder=" " value="林小满"><label for="f-name">姓名</label></div><div class="f-field f-float"><input class="f-input" id="f-city" placeholder=" "><label for="f-city">所在城市</label></div></div></div>
+</article>
+<article class="sp" data-name="搜索框" data-en="Search Field" data-demo="search" data-hint="点进去，再输入" data-use="平时收得短，点进去才展开。有内容时才出现清空按钮。" data-prompt="做一个可展开搜索框：胶囊形，左侧放大镜；聚焦时宽度从 170px 展开，200ms；有内容时右侧弹出清空按钮。">
+  <div class="stage"><div class="f-search"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="M16 16l5 5"/></svg><input class="f-input" id="f-q" placeholder="搜索课程" aria-label="搜索课程" autocomplete="off"><button class="f-clear" type="button" aria-label="清空">×</button></div></div>
+</article>
+<article class="sp" data-name="自增高文本域" data-en="Auto-grow Textarea" data-demo="textarea" data-hint="多写几行" data-use="写长文字时框跟着变高，不出现内部滚动条。右下角提示还能写多少字。" data-prompt="做一个自增高文本域：高度随内容平滑变高，不出现滚动条；右下角显示「字数 / 120」，超过上限时数字变红。">
+  <div class="stage"><div class="f-col" style="gap:5px"><textarea class="f-input f-ta" id="f-ta" aria-label="课程反馈" rows="1">这节课讲得很清楚，想再多一些实操案例。</textarea><div class="f-cnt"></div></div></div>
+</article>
+<article class="sp" data-name="标签输入" data-en="Tag Input" data-demo="tags" data-hint="输入后按回车" data-use="回车一次生成一个小标签，适合填多个关键词，删起来也方便。" data-prompt="做一个标签输入（Tag Input）：输入文字按回车变成标签并弹入，标签带叉可删除，输入框为空时按退格删除最后一个，不允许重复。">
+  <div class="stage"><div class="f-tags"><input id="f-tag" placeholder="加一个标签" aria-label="添加标签" autocomplete="off"></div></div>
+</article>
+<article class="sp" data-name="验证码输入框" data-en="OTP Input" data-demo="otp" data-hint="输入数字，也能直接粘贴" data-use="每个数字一格，填完自动跳格，退格往回走，也能直接粘贴整串。" data-prompt="做一个 6 位验证码输入框（OTP Input）：一格一个数字，输入后自动跳到下一格，删除时回退，支持一次粘贴 6 位自动填满，填满后变绿。">
+  <div class="stage"><div class="f-col" style="justify-items:center;width:auto"><div class="f-otp" role="group" aria-label="验证码"><input id="f-o1" inputmode="numeric" maxlength="1" aria-label="第 1 位" autocomplete="off" style="--i:0"><input id="f-o2" inputmode="numeric" maxlength="1" aria-label="第 2 位" autocomplete="off" style="--i:1"><input id="f-o3" inputmode="numeric" maxlength="1" aria-label="第 3 位" autocomplete="off" style="--i:2"><input id="f-o4" inputmode="numeric" maxlength="1" aria-label="第 4 位" autocomplete="off" style="--i:3"><input id="f-o5" inputmode="numeric" maxlength="1" aria-label="第 5 位" autocomplete="off" style="--i:4"><input id="f-o6" inputmode="numeric" maxlength="1" aria-label="第 6 位" autocomplete="off" style="--i:5"></div><div class="f-small">短信验证码已发送</div></div></div>
+</article>
+<article class="sp" data-name="拖拽上传" data-en="Dropzone" data-demo="upload" data-hint="点虚线框模拟上传" data-use="把文件拖进虚线区就开始传，每个文件有进度，传错了能删。" data-prompt="做一个拖拽上传区（Dropzone）：虚线框，文件拖到上方时高亮并放大 3%；松手后列出文件名和进度条，完成显示对勾；格式不对的文件标红并可点叉移除。">
+  <div class="stage"><div class="f-up"><button class="f-drop" type="button" style="padding-block:13px"><b>↑</b>把文件拖到这里，或点击模拟上传</button><div class="f-files" style="display:grid;gap:6px"></div></div></div>
+</article>
+<h2 class="group">从选项里选</h2>
+<article class="sp" data-name="下拉选择" data-en="Select" data-auto data-demo="select" data-hint="点框开关" data-use="选项多时才收进下拉。只有三四个的话，直接铺开成单选框更好比较。" data-prompt="做一个下拉选择（Select）：点击后选项列表向下展开并淡入，箭头旋转 180 度，已选项显示对勾，点外面关闭。如果选项少于 5 个，改成平铺的单选框。">
+  <div class="stage"><div class="f-sel"><button class="f-input f-sel-b" type="button" data-toggle aria-haspopup="listbox"><span>入门班</span><span class="chev">▾</span></button><ul class="f-list" role="listbox" aria-label="班级"><li><button type="button" role="option" aria-selected="true">入门班</button></li><li><button type="button" role="option" aria-selected="false">进阶班</button></li><li><button type="button" role="option" aria-selected="false">实战营</button></li><li><button type="button" role="option" aria-selected="false">周末班</button></li><li><button type="button" role="option" aria-selected="false">企业内训</button></li></ul></div></div>
+</article>
+<article class="sp" data-name="自动补全" data-en="Autocomplete" data-demo="combo" data-hint="输入「上」或「杭」" data-use="打几个字就列出匹配项，城市、学校这种选项太多的字段靠它。" data-prompt="做一个自动补全（Autocomplete）输入框：输入时实时筛选城市列表并高亮匹配的字，支持上下键选择、回车确认，没有结果时显示提示。">
+  <div class="stage"><div class="f-combo"><input class="f-input" id="f-combo" value="上" role="combobox" aria-expanded="true" aria-label="城市" autocomplete="off"><ul class="f-list"></ul></div></div>
+</article>
+<article class="sp" data-name="级联选择" data-en="Cascader" data-auto data-demo="cascader" data-hint="一层层点下去" data-use="一级选完才出下一级，比如省、市、区。" data-prompt="做一个级联选择（Cascader）：点击后展开三列，选省出市、选市出区，新一列从左滑入；选到最后一级后输入框显示完整路径并收起。">
+  <div class="stage"><div class="f-cas"><button class="f-input f-cas-b" type="button" data-toggle aria-haspopup="true"><span>请选择地区</span><span>▾</span></button><div class="f-cas-p"><div class="f-cas-c"></div><div class="f-cas-c"></div><div class="f-cas-c"></div></div></div></div>
+</article>
+<article class="sp" data-name="日期选择器" data-en="Date Picker" data-demo="calendar" data-hint="点两个日期选范围" data-use="订酒店这种要选起止日期的场景最合适。生日就别用了，直接输入比翻月快得多。" data-prompt="做一个日期范围选择器（Date Picker）：点第一个日期为入住、第二个为离店，中间日期浅色连成一段，翻月时日历左右滑动。注意：出生日期不要用它，改成直接输入年月日。">
+  <div class="stage"><div class="f-cal" style="padding-block:5px"><div class="f-cal-h"><button type="button" aria-label="上个月" data-m="-1">‹</button><span class="t"></span><button type="button" aria-label="下个月" data-m="1">›</button></div><div class="f-cal-g"></div><p class="f-cal-note">选择入住日期</p></div></div>
+</article>
+<article class="sp" data-name="滑块" data-en="Slider" data-demo="range" data-hint="拖两端，或直接改数字" data-use="拖两个把手定一个大致范围，比如价格。要准确数字就旁边再配输入框。" data-prompt="做一个价格区间滑块（Slider）：两个把手，中间段橙色，按住把手放大 1.2 倍；下方两个数字输入框和把手双向同步，方便输入精确数值。">
+  <div class="stage"><div class="f-rg2"><label for="f-lo">价格区间（元）</label><div class="f-dual" style="--a:20%;--b:60%"><div class="tr"></div><input id="f-lo" type="range" min="0" max="1000" step="10" value="200" aria-label="最低价"><input id="f-hi" type="range" min="0" max="1000" step="10" value="600" aria-label="最高价"></div><div class="f-nums"><input id="f-lon" type="number" min="0" max="1000" value="200" aria-label="最低价数字"><span>至</span><input id="f-hin" type="number" min="0" max="1000" value="600" aria-label="最高价数字"></div></div></div>
+</article>
+<article class="sp" data-name="评分" data-en="Rating" data-demo="rating" data-hint="点星星" data-use="打分、满意度。悬停预览，点击时星星依次弹一下，下面的文字跟着变。" data-prompt="做一个五星评分：鼠标悬停时预览到当前星，点击确认后从第一颗开始依次弹跳，每颗延迟 45ms，下方显示对应文字评价。">
+  <div class="stage"><div class="f-rate"><div class="f-stars" role="group" aria-label="评分"></div><div class="f-small">点一下打分</div></div></div>
+</article>
+<h2 class="group">帮用户填对</h2>
+<article class="sp" data-name="必填星号" data-en="Required" data-use="字段名后面一个红星就够了，别把输入框都染红。" data-prompt="给必填项加红色星号（Required）：放在字段名称后面，只标星号不把输入框标红；选填项写一个灰色的「选填」。">
+  <div class="stage"><div class="f-form"><label for="f-rq1"><span>姓名<span class="req" aria-hidden="true">*</span></span><input class="f-input" id="f-rq1" required autocomplete="off"></label><label for="f-rq2"><span>公司 <span class="opt">选填</span></span><input class="f-input" id="f-rq2" autocomplete="off"></label></div></div>
+</article>
+<article class="sp" data-name="帮助文字" data-en="Helper Text" data-hint="点进输入框" data-use="格子下面一行说明，一直在那里，比如密码要几位，不用等出错才知道。" data-prompt="给输入框加帮助文字（Helper Text）：下方一行灰色小字说明怎么填，始终显示，不要等到出错才出现。">
+  <div class="stage"><div class="f-help"><label for="f-phone">手机号</label><input class="f-input" id="f-phone" inputmode="numeric" placeholder="11 位数字" autocomplete="off"><small>只用来接收上课提醒，不会公开。</small></div></div>
+</article>
+<article class="sp" data-name="校验报错" data-en="Validation" data-demo="validate" data-hint="改完点框外面" data-use="等用户离开这一格再检查，错了就在格子底下写明该怎么改。" data-prompt="做表单校验（Validation）：用户离开输入框时才检查，错误时红框，并在正下方写清楚怎么改；重新输入时先清掉报错，填对后显示绿框和对勾。">
+  <div class="stage"><div class="f-col" style="gap:6px"><div class="f-field f-val bad"><input class="f-input" id="f-mail" type="email" value="xiaoman@" aria-label="邮箱" autocomplete="off"><span class="f-mark">✓</span></div><div class="f-msg"><span>邮箱缺少域名，请写成 name@qq.com 这样</span></div></div></div>
+</article>
+<article class="sp" data-name="密码强度" data-en="Password Strength" data-demo="password" data-hint="改一改密码" data-use="边输边看强度条变色，眼睛图标能切换显示和隐藏。" data-prompt="做一个密码框（Password Strength）：右侧眼睛图标切换明文和密文；下方 4 格强度条按长度、大小写、数字、符号实时变色，从红到绿。">
+  <div class="stage"><div class="f-col"><div class="f-field"><input class="f-input f-pw" id="f-pw" type="password" value="Leap2026" aria-label="密码" autocomplete="off"><button class="f-eye" type="button" aria-label="显示密码" aria-pressed="false">👁</button></div><div class="f-str"><i></i><i></i><i></i><i></i></div><div class="f-small"></div></div></div>
+</article></div><p class="note">提示词里的时长等具体参数是建议值，可以按需调整。演示里的课程、人名、价格和文件都是虚构示例。</p><div class="pager"><a href="03-motion.html">← 动效</a><a href="05-loading.html">加载与错误页 →</a></div></main><script>window.demo={};
+demo.search = (stage) => {
+  const box = stage.querySelector('.f-search');
+  const input = box.querySelector('input');
+  input.addEventListener('input', () => box.classList.toggle('has', !!input.value));
+  box.querySelector('.f-clear').addEventListener('click', () => { input.value = ''; box.classList.remove('has'); input.focus(); });
+};
+demo.textarea = (stage) => {
+  const ta = stage.querySelector('textarea');
+  const cnt = stage.querySelector('.f-cnt');
+  const MAX = 120;
+  const fit = () => {
+    ta.style.height = 'auto';
+    const h = Math.min(ta.scrollHeight + 3, 180);
+    ta.style.height = h + 'px';
+    cnt.textContent = ta.value.length + ' / ' + MAX;
+    cnt.classList.toggle('over', ta.value.length > MAX);
+  };
+  ta.addEventListener('input', fit);
+  fit();
+};
+demo.select = (stage) => {
+  const label = stage.querySelector('.f-sel-b span');
+  const opts = [...stage.querySelectorAll('[role=option]')];
+  opts.forEach((o) => o.addEventListener('click', () => {
+    opts.forEach((x) => x.setAttribute('aria-selected', String(x === o)));
+    label.textContent = o.textContent;
+    stage.classList.remove('on');
+  }));
+  document.addEventListener('click', (e) => { if (stage.dataset.touched && !stage.contains(e.target)) stage.classList.remove('on'); });
+};
+demo.combo = (stage) => {
+  const CITIES = ['上海', '上饶', '北京', '广州', '深圳', '杭州', '杭锦旗', '南京', '成都', '武汉', '苏州', '西安'];
+  const input = stage.querySelector('input');
+  const list = stage.querySelector('.f-list');
+  let active = 0, shown = [];
+  const render = () => {
+    const q = input.value.trim();
+    shown = CITIES.filter((c) => c.includes(q)).slice(0, 4);
+    list.replaceChildren();
+    if (!shown.length) { const li = document.createElement('li'); li.className = 'f-none'; li.textContent = '没有匹配的城市'; list.appendChild(li); return; }
+    shown.forEach((c, i) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button'; b.tabIndex = -1;
+      if (i === active) b.className = 'act';
+      const at = q ? c.indexOf(q) : -1;
+      if (at >= 0) { b.append(c.slice(0, at)); const m = document.createElement('mark'); m.textContent = q; b.append(m, c.slice(at + q.length)); } else b.textContent = c;
+      b.addEventListener('click', () => choose(c));
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  };
+  const choose = (c) => { input.value = c; active = 0; render(); };
+  input.addEventListener('input', () => { active = 0; render(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); active = (active + 1) % (shown.length || 1); render(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); active = (active - 1 + (shown.length || 1)) % (shown.length || 1); render(); }
+    if (e.key === 'Enter' && shown[active]) { e.preventDefault(); choose(shown[active]); }
+  });
+  render();
+};
+demo.tags = (stage) => {
+  const box = stage.querySelector('.f-tags');
+  const input = box.querySelector('input');
+  const has = (t) => [...box.querySelectorAll('.f-tag span')].some((s) => s.textContent === t);
+  const remove = (el) => { el.classList.add('out'); el.addEventListener('animationend', () => el.remove(), { once: true }); };
+  const add = (t) => {
+    if (!t || has(t)) return;
+    const tag = document.createElement('div');
+    tag.className = 'f-tag';
+    const label = document.createElement('span'); label.textContent = t;
+    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', '删除 ' + t);
+    x.addEventListener('click', () => remove(tag));
+    tag.append(label, x);
+    box.insertBefore(tag, input);
+  };
+  ['提示词', '动效', '零基础'].forEach(add);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); add(input.value.trim()); input.value = ''; }
+    const tags = box.querySelectorAll('.f-tag');
+    if (e.key === 'Backspace' && !input.value && tags.length) remove(tags[tags.length - 1]);
+  });
+};
+demo.rating = (stage) => {
+  const WORDS = ['不太满意', '一般', '还行', '满意', '非常满意'];
+  const row = stage.querySelector('.f-stars');
+  const tip = stage.querySelector('.f-small');
+  let score = 4;
+  const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.2 6.8.8-5 4.6 1.4 6.7L12 17.5 5.9 20.800l1.4-6.700-5-4.600 6.800-.800z"/></svg>';
+  const btns = WORDS.map((w, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.innerHTML = STAR; b.style.setProperty('--i', i); b.setAttribute('aria-label', (i + 1) + ' 星：' + w);
+    row.appendChild(b);
+    return b;
+  });
+  const paint = (n) => btns.forEach((b, i) => b.classList.toggle('lit', i < n));
+  btns.forEach((b, i) => {
+    b.addEventListener('pointerenter', () => paint(i + 1));
+    b.addEventListener('click', () => {
+      score = i + 1;
+      paint(score);
+      tip.textContent = WORDS[i];
+      btns.forEach((x) => x.classList.remove('pop'));
+      void row.offsetWidth;
+      btns.forEach((x, n) => { if (n <= i) x.classList.add('pop'); });
+    });
+  });
+  row.addEventListener('pointerleave', () => paint(score));
+  paint(score);
+  tip.textContent = WORDS[score - 1];
+};
+demo.otp = (stage, U) => {
+  const box = stage.querySelector('.f-otp');
+  const cells = [...box.querySelectorAll('input')];
+  const tip = stage.querySelector('.f-small');
+  const refresh = () => {
+    cells.forEach((c) => c.classList.toggle('has', !!c.value));
+    const done = cells.every((c) => c.value);
+    box.classList.toggle('done', done);
+    tip.textContent = done ? '验证通过' : '短信验证码已发送';
+  };
+  const fill = (digits, from) => {
+    [...digits].slice(0, cells.length - from).forEach((d, i) => { cells[from + i].value = d; });
+    refresh();
+  };
+  cells.forEach((c, i) => {
+    c.addEventListener('input', () => {
+      c.value = c.value.replace(/\D/g, '').slice(-1);
+      if (c.value && cells[i + 1]) cells[i + 1].focus();
+      refresh();
+    });
+    c.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !c.value && cells[i - 1]) { cells[i - 1].focus(); cells[i - 1].value = ''; refresh(); e.preventDefault(); }
+    });
+    c.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '');
+      fill(digits, i);
+      cells[Math.min(cells.length - 1, i + digits.length)].focus();
+    });
+  });
+  // Idle demo: digits type themselves in, then clear and repeat.
+  const SAMPLE = '482915';
+  let n = 0;
+  U.auto(stage, () => {
+    if (n > SAMPLE.length + 3) { cells.forEach((c) => { c.value = ''; }); n = 0; refresh(); return; }
+    if (n < SAMPLE.length) cells[n].value = SAMPLE[n];
+    n++;
+    refresh();
+  }, 380);
+};
+demo.upload = (stage, U) => {
+  const drop = stage.querySelector('.f-drop');
+  const files = stage.querySelector('.f-files');
+  const addBad = () => {
+    const row = document.createElement('div');
+    row.className = 'f-file bad';
+    const label = document.createElement('span'); label.textContent = '安装包.exe';
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '×'; x.setAttribute('aria-label', '移除这个文件');
+    x.addEventListener('click', () => row.remove());
+    const why = document.createElement('em'); why.textContent = '格式不支持，只能传 PDF 或图片';
+    row.append(label, x, why);
+    files.appendChild(row);
+  };
+  let runId = 0;
+  const run = (name) => {
+    const id = ++runId; // A newer upload supersedes this one, so its finish must not add rows.
+    files.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'f-file';
+    const label = document.createElement('span'); label.textContent = name;
+    const pct = document.createElement('em');
+    const bar = document.createElement('i');
+    row.append(label, pct, bar);
+    files.appendChild(row);
+    U.tween(1400, (p) => {
+      bar.style.setProperty('--w', (p * 100) + '%');
+      pct.textContent = Math.round(p * 100) + '%';
+    }, () => {
+      if (id !== runId) return;
+      pct.textContent = '✓ 完成'; pct.className = 'ok'; addBad();
+    });
+  };
+  drop.addEventListener('click', () => run('课程大纲-示例.pdf'));
+  ['dragenter', 'dragover'].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((n) => drop.addEventListener(n, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    run(f ? f.name : '未命名文件');
+  });
+  stage.addEventListener('inview', () => run('课程大纲-示例.pdf'));
+};
+demo.calendar = (stage) => {
+  const grid = stage.querySelector('.f-cal-g');
+  const title = stage.querySelector('.t');
+  const note = stage.querySelector('.f-cal-note');
+  const today = new Date();
+  let y = today.getFullYear(), m = today.getMonth();
+  let start = null, end = null;
+  const stamp = (yy, mm, dd) => new Date(yy, mm, dd).getTime();
+  const fmt = (t) => { const d = new Date(t); return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日'; };
+  const describe = () => {
+    if (start === null) note.textContent = '选择入住日期';
+    else if (end === null) note.textContent = '入住 ' + fmt(start) + '，再选离店日期';
+    else note.textContent = '入住 ' + fmt(start) + ' → 离店 ' + fmt(end) + '，共 ' + Math.round((end - start) / 864e5) + ' 晚';
+  };
+  const render = (dir) => {
+    title.textContent = y + ' 年 ' + (m + 1) + ' 月';
+    grid.replaceChildren();
+    grid.classList.remove('next', 'prev');
+    '日一二三四五六'.split('').forEach((w) => { const s = document.createElement('span'); s.textContent = w; grid.appendChild(s); });
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let i = 0; i < first; i++) grid.appendChild(document.createElement('i'));
+    for (let d = 1; d <= days; d++) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = d;
+      const t = stamp(y, m, d);
+      if (t === stamp(today.getFullYear(), today.getMonth(), today.getDate())) b.classList.add('today');
+      if (t === start || t === end) b.classList.add('sel');
+      else if (start !== null && end !== null && t > start && t < end) b.classList.add('in');
+      b.addEventListener('click', () => {
+        if (start === null || end !== null || t <= start) { start = t; end = null; } else end = t;
+        render(0);
+        describe();
+      });
+      grid.appendChild(b);
+    }
+    if (dir) { void grid.offsetWidth; grid.classList.add(dir > 0 ? 'next' : 'prev'); }
+  };
+  stage.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => {
+    const dir = +b.dataset.m;
+    m += dir;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    render(dir);
+  }));
+  render(0);
+};
+demo.range = (stage, U) => {
+  const dual = stage.querySelector('.f-dual');
+  const lo = stage.querySelector('#f-lo'), hi = stage.querySelector('#f-hi');
+  const loN = stage.querySelector('#f-lon'), hiN = stage.querySelector('#f-hin');
+  const MAX = 1000, GAP = 50;
+  const paint = () => {
+    dual.style.setProperty('--a', (lo.value / MAX * 100) + '%');
+    dual.style.setProperty('--b', (hi.value / MAX * 100) + '%');
+    loN.value = lo.value; hiN.value = hi.value;
+  };
+  // Keep the two handles from crossing, whichever one moved.
+  lo.addEventListener('input', () => { lo.value = Math.min(+lo.value, +hi.value - GAP); paint(); });
+  hi.addEventListener('input', () => { hi.value = Math.max(+hi.value, +lo.value + GAP); paint(); });
+  loN.addEventListener('change', () => { lo.value = Math.min(+loN.value, +hi.value - GAP); paint(); });
+  hiN.addEventListener('change', () => { hi.value = Math.max(+hiN.value, +lo.value + GAP); paint(); });
+  paint();
+  stage.addEventListener('inview', () => {
+    U.tween(1200, (p) => { lo.value = 200 + Math.sin(p * Math.PI) * 180; hi.value = 600 + Math.sin(p * Math.PI) * 220; paint(); });
+  });
+};
+demo.cascader = (stage) => {
+  const DATA = { 上海: { 上海市: ['浦东新区', '徐汇区', '静安区'] }, 浙江: { 杭州: ['西湖区', '滨江区', '余杭区'], 宁波: ['海曙区', '鄞州区'] }, 广东: { 广州: ['天河区', '越秀区'], 深圳: ['南山区', '福田区'] } };
+  const cols = [...stage.querySelectorAll('.f-cas-c')];
+  const label = stage.querySelector('.f-cas-b span');
+  const path = [];
+  const fill = (col, items, active, onPick) => {
+    col.replaceChildren();
+    items.forEach((name) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = name;
+      if (name === active) b.className = 'act';
+      b.addEventListener('click', () => onPick(name));
+      col.appendChild(b);
+    });
+  };
+  const render = () => {
+    const [prov, city] = path;
+    fill(cols[0], Object.keys(DATA), prov, (n) => { path.length = 0; path.push(n); render(); });
+    fill(cols[1], prov ? Object.keys(DATA[prov]) : [], city, (n) => { path.length = 1; path.push(n); render(); });
+    fill(cols[2], prov && city ? DATA[prov][city] : [], null, (n) => {
+      label.textContent = prov + ' / ' + city + ' / ' + n;
+      stage.classList.remove('on');
+    });
+  };
+  path.push('浙江', '杭州');
+  render();
+};
+demo.password = (stage) => {
+  const input = stage.querySelector('input');
+  const eye = stage.querySelector('.f-eye');
+  const bars = stage.querySelector('.f-str');
+  const tip = stage.querySelector('.f-small');
+  const WORDS = ['太弱了', '有点弱', '还可以', '够强了'];
+  const score = (v) => [v.length >= 8, /[a-z]/.test(v) && /[A-Z]/.test(v), /\d/.test(v), /[^\w]/.test(v)].filter(Boolean).length;
+  const update = () => {
+    const n = input.value ? Math.max(1, score(input.value)) : 0;
+    bars.dataset.n = n;
+    tip.textContent = n ? '强度：' + WORDS[n - 1] : '至少 8 位，混合大小写、数字和符号';
+  };
+  eye.addEventListener('click', () => {
+    const hidden = input.type === 'password';
+    input.type = hidden ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(hidden));
+    eye.setAttribute('aria-label', hidden ? '隐藏密码' : '显示密码');
+    eye.style.opacity = hidden ? 1 : .55;
+  });
+  eye.style.opacity = .55;
+  input.addEventListener('input', update);
+  update();
+};
+demo.validate = (stage) => {
+  const input = stage.querySelector('input');
+  const box = stage.querySelector('.f-val');
+  const ok = () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value);
+  // Check only after the viewer leaves the field: never scold while they are still typing.
+  input.addEventListener('input', () => box.classList.remove('bad', 'good', 'shake'));
+  input.addEventListener('blur', () => {
+    if (!input.value) return;
+    box.classList.toggle('good', ok());
+    box.classList.toggle('bad', !ok());
+    if (ok()) return;
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+  });
+};
+demo.submit = (stage) => {
+  const form = stage.querySelector('form');
+  const btn = form.querySelector('.btn');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = '提交中';
+    setTimeout(() => {
+      btn.textContent = '✓ 已提交';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '提交'; }, 1500);
+    }, 1000);
+  });
+};
+</script><script>// Shared page shell: renders specimen captions, copy buttons, pause control and demo helpers.
+(function () {
+  const isFrozen = (stage) =>
+    document.body.classList.contains('paused') || stage.closest('.sp').classList.contains('off');
+
+  const U = {
+    // Repeats while the specimen is on screen and motion is not paused.
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    // Same as loop, but stops for good once the viewer has interacted with this stage.
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) {
+      const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - start) / ms);
+        fn(p);
+        if (p < 1) requestAnimationFrame(step); else if (done) done();
+      };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+
+  const cards = [...document.querySelectorAll('.sp')];
+  const toc = document.querySelector('.toc');
+
+  function addText(parent, tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    el.textContent = text;
+    parent.appendChild(el);
+    return el;
+  }
+
+  async function copyPrompt(btn, promptEl) {
+    try {
+      await navigator.clipboard.writeText(promptEl.textContent);
+      btn.textContent = '已复制';
+    } catch (err) {
+      // Clipboard refused (some embedded views): select the text so the viewer can copy it by hand.
+      const range = document.createRange();
+      range.selectNodeContents(promptEl);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = '已选中';
+    }
+    setTimeout(() => { btn.textContent = '复制'; }, 1600);
+  }
+
+  cards.forEach((card, i) => {
+    const d = card.dataset;
+    card.id = 's' + (i + 1);
+    const no = String(i + 1).padStart(2, '0');
+    const meta = addText(card, 'div', 'meta', '');
+    const head = addText(meta, 'div', 'meta-h', '');
+    addText(head, 'span', 'no', no);
+    addText(head, 'h3', '', d.name);
+    addText(head, 'span', 'en', d.en);
+    addText(meta, 'p', 'use', d.use);
+    if (d.params) addText(meta, 'div', 'params', d.params);
+    const pr = addText(meta, 'div', 'pr', '');
+    addText(pr, 'b', '', '一句话让 AI 做');
+    const promptEl = addText(pr, 'p', '', d.prompt);
+    const btn = addText(pr, 'button', '', '复制');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '复制「' + d.name + '」的提示词');
+    btn.addEventListener('click', () => copyPrompt(btn, promptEl));
+    const stage = card.querySelector('.stage');
+    if (d.hint) addText(stage, 'span', 'hint', d.hint);
+    if (toc) { const a = addText(toc, 'a', '', d.name); a.href = '#' + card.id; }
+  });
+
+  // Delegated open / close for popup-style demos.
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    const stage = t.closest('.stage');
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  // Esc closes the popup in the stage used last, even if a click left focus on the page body.
+  let lastStage = null;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lastStage) lastStage.classList.remove('on');
+  });
+  const markTouched = (e) => {
+    const stage = e.target.closest && e.target.closest('.stage');
+    if (stage) { stage.dataset.touched = '1'; lastStage = stage; }
+  };
+  document.addEventListener('pointerdown', markTouched, true);
+  document.addEventListener('focusin', markTouched, true);
+
+  // On phones the tab row scrolls sideways: keep the current page's tab in view.
+  const tabs = document.querySelector('.tabs');
+  const currentTab = tabs.querySelector('[aria-current]');
+  if (currentTab) tabs.scrollLeft = currentTab.offsetLeft - tabs.offsetLeft - 12;
+
+  // Pause control; viewers who asked for reduced motion start paused.
+  const pause = document.getElementById('pauseAll');
+  function setPaused(v) {
+    document.body.classList.toggle('paused', v);
+    pause.textContent = v ? '继续动效' : '暂停动效';
+    pause.setAttribute('aria-pressed', String(v));
+  }
+  pause.addEventListener('click', () => setPaused(!document.body.classList.contains('paused')));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) setPaused(true);
+
+  // Run page demos, then watch visibility: pause off-screen specimens, auto-open on first view.
+  cards.forEach((card) => {
+    const stage = card.querySelector('.stage');
+    const fn = window.demo[card.dataset.demo];
+    if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+    if (fn) fn(stage, U);
+  });
+  const seen = new WeakSet();
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      en.target.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen.has(en.target)) return;
+      seen.add(en.target);
+      const stage = en.target.querySelector('.stage');
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (en.target.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 });
+  cards.forEach((c) => io.observe(c));
+})();
+</script></body></html>

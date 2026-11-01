@@ -1,0 +1,148 @@
+<!doctype html>
+<!--
+名称：验证码输入框（OTP Input）
+编号：04-forms/06
+什么时候用：每个数字一格，填完自动跳格，退格往回走，也能直接粘贴整串。
+一句话提示词：做一个 6 位验证码输入框（OTP Input）：一格一个数字，输入后自动跳到下一格，删除时回退，支持一次粘贴 6 位自动填满，填满后变绿。
+操作提示：输入数字，也能直接粘贴
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>验证码输入框</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.f-col { width: min(84%, 270px); display: grid; gap: 14px; }
+.f-small { font-size: 13px; color: var(--muted); min-height: 1.6em; }
+.f-otp { display: flex; gap: 6px; }
+.f-otp input { width: 38px; height: 46px; text-align: center; font: 700 19px var(--mono); border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); outline: none; transition: border-color .15s, box-shadow .15s, transform .15s; padding: 0; }
+.f-otp input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.f-otp input.has { border-color: var(--accent); }
+.f-otp.done input { border-color: var(--ok); }
+.f-otp.done input:nth-child(n) { animation: f-otp-ok .35s calc(var(--i) * 40ms); }
+@keyframes f-otp-ok { 40% { transform: translateY(-6px); } }
+</style></head>
+<body><article class="sp" data-name="验证码输入框" data-en="OTP Input" data-demo="otp" data-hint="输入数字，也能直接粘贴" data-use="每个数字一格，填完自动跳格，退格往回走，也能直接粘贴整串。" data-prompt="做一个 6 位验证码输入框（OTP Input）：一格一个数字，输入后自动跳到下一格，删除时回退，支持一次粘贴 6 位自动填满，填满后变绿。"><div class="stage"><div class="f-col" style="justify-items:center;width:auto"><div class="f-otp" role="group" aria-label="验证码"><input id="f-o1" inputmode="numeric" maxlength="1" aria-label="第 1 位" autocomplete="off" style="--i:0"><input id="f-o2" inputmode="numeric" maxlength="1" aria-label="第 2 位" autocomplete="off" style="--i:1"><input id="f-o3" inputmode="numeric" maxlength="1" aria-label="第 3 位" autocomplete="off" style="--i:2"><input id="f-o4" inputmode="numeric" maxlength="1" aria-label="第 4 位" autocomplete="off" style="--i:3"><input id="f-o5" inputmode="numeric" maxlength="1" aria-label="第 5 位" autocomplete="off" style="--i:4"><input id="f-o6" inputmode="numeric" maxlength="1" aria-label="第 6 位" autocomplete="off" style="--i:5"></div><div class="f-small">短信验证码已发送</div></div></div></article>
+<script>window.demo = {};
+demo.otp = (stage, U) => {
+  const box = stage.querySelector('.f-otp');
+  const cells = [...box.querySelectorAll('input')];
+  const tip = stage.querySelector('.f-small');
+  const refresh = () => {
+    cells.forEach((c) => c.classList.toggle('has', !!c.value));
+    const done = cells.every((c) => c.value);
+    box.classList.toggle('done', done);
+    tip.textContent = done ? '验证通过' : '短信验证码已发送';
+  };
+  const fill = (digits, from) => {
+    [...digits].slice(0, cells.length - from).forEach((d, i) => { cells[from + i].value = d; });
+    refresh();
+  };
+  cells.forEach((c, i) => {
+    c.addEventListener('input', () => {
+      c.value = c.value.replace(/\D/g, '').slice(-1);
+      if (c.value && cells[i + 1]) cells[i + 1].focus();
+      refresh();
+    });
+    c.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !c.value && cells[i - 1]) { cells[i - 1].focus(); cells[i - 1].value = ''; refresh(); e.preventDefault(); }
+    });
+    c.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '');
+      fill(digits, i);
+      cells[Math.min(cells.length - 1, i + digits.length)].focus();
+    });
+  });
+  // Idle demo: digits type themselves in, then clear and repeat.
+  const SAMPLE = '482915';
+  let n = 0;
+  U.auto(stage, () => {
+    if (n > SAMPLE.length + 3) { cells.forEach((c) => { c.value = ''; }); n = 0; refresh(); return; }
+    if (n < SAMPLE.length) cells[n].value = SAMPLE[n];
+    n++;
+    refresh();
+  }, 380);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

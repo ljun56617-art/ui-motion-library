@@ -1,0 +1,131 @@
+<!doctype html>
+<!--
+名称：视差滚动（Parallax）
+编号：03-motion/15
+什么时候用：前后几层以不同速度移动，近快远慢，页面就有了景深。
+关键参数：远景慢、近景快 · translateY
+一句话提示词：做视差滚动（Parallax）：太阳、远山、中山、近山四层，滚动时越远的层移动越慢、越近的层越快，只用 transform 做位移。
+操作提示：滚动这个框
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>视差滚动</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.a-par { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(180deg, var(--art3), var(--soft)); cursor: move; }
+.a-par > * { position: absolute; will-change: transform; }
+.a-sun { width: 66px; height: 66px; border-radius: 50%; background: var(--surface); left: 58%; top: 26px; }
+.a-h1 { left: -12%; right: -12%; bottom: -40px; height: 170px; background: var(--art1); opacity: .55; clip-path: polygon(0 62%, 22% 30%, 40% 56%, 62% 16%, 82% 52%, 100% 28%, 100% 100%, 0 100%); }
+.a-h2 { left: -12%; right: -12%; bottom: -36px; height: 130px; background: var(--art2); opacity: .8; clip-path: polygon(0 40%, 18% 70%, 38% 26%, 60% 62%, 78% 30%, 100% 66%, 100% 100%, 0 100%); }
+.a-h3 { left: -12%; right: -12%; bottom: -30px; height: 84px; background: var(--accent-deep); clip-path: polygon(0 50%, 30% 22%, 55% 58%, 78% 18%, 100% 44%, 100% 100%, 0 100%); }
+.a-sbox { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: thin; }
+.a-track { height: 500%; }
+.a-par { position: sticky; inset: 0 auto auto 0; width: 100%; height: var(--stage-h); cursor: ns-resize; }
+</style></head>
+<body><article class="sp" data-name="视差滚动" data-en="Parallax" data-demo="parallax" data-hint="滚动这个框" data-params="远景慢、近景快 · translateY" data-use="前后几层以不同速度移动，近快远慢，页面就有了景深。" data-prompt="做视差滚动（Parallax）：太阳、远山、中山、近山四层，滚动时越远的层移动越慢、越近的层越快，只用 transform 做位移。"><div class="stage"><div class="a-sbox" tabindex="0" aria-label="滚动示例"><div class="a-track" style="height:260%"><div class="a-par"><div class="a-sun" data-d=".05"></div><div class="a-h1" data-d=".12"></div><div class="a-h2" data-d=".24"></div><div class="a-h3" data-d=".42"></div></div></div></div></div></article>
+<script>window.demo = {};
+function autoScroll(stage, box, U, speed) {
+  let pos = 0, dir = 1;
+  U.frame(stage, () => {
+    if (stage.dataset.touched) return;
+    const max = box.scrollHeight - box.clientHeight;
+    pos += dir * speed;
+    if (pos >= max) { pos = max; dir = -1; } else if (pos <= 0) { pos = 0; dir = 1; }
+    box.scrollTop = pos;
+  });
+}
+demo.parallax = (stage, U) => {
+  const box = stage.querySelector('.a-sbox');
+  const layers = [...stage.querySelectorAll('[data-d]')];
+  // Layers start pushed down and rise into place, so no gap opens under the hills at any scroll position.
+  const update = () => {
+    const left = box.scrollHeight - box.clientHeight - box.scrollTop;
+    layers.forEach((l) => { l.style.transform = 'translateY(' + (left * +l.dataset.d).toFixed(1) + 'px)'; });
+  };
+  box.addEventListener('scroll', update);
+  update();
+  autoScroll(stage, box, U, .9);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

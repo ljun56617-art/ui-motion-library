@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+名称：跑马灯（Marquee）
+编号：03-motion/20
+什么时候用：内容排成一行不停往一边走，放 Logo 墙很合适。
+关键参数：16s 一轮 · linear · 复制一份无缝衔接
+一句话提示词：做跑马灯（Marquee）：一排 Logo 匀速向左无限循环，把内容复制一份、位移 -50% 实现无缝衔接，两端渐隐，鼠标移上去暂停。
+操作提示：移上去会暂停
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>跑马灯</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.a-mq { width: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.a-mq-t { display: flex; width: max-content; animation: a-mq 16s linear infinite; }
+.a-mq:hover .a-mq-t { animation-play-state: paused; }
+.a-mq-t span { flex: none; margin-right: 10px; padding: 10px 18px; font-weight: 700; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+@keyframes a-mq { to { transform: translateX(-50%); } }
+</style></head>
+<body><article class="sp" data-name="跑马灯" data-en="Marquee" data-hint="移上去会暂停" data-params="16s 一轮 · linear · 复制一份无缝衔接" data-use="内容排成一行不停往一边走，放 Logo 墙很合适。" data-prompt="做跑马灯（Marquee）：一排 Logo 匀速向左无限循环，把内容复制一份、位移 -50% 实现无缝衔接，两端渐隐，鼠标移上去暂停。"><div class="stage"><div class="a-mq"><div class="a-mq-t"><span>晨光学院</span><span>青禾教育</span><span>远山书院</span><span>小满工坊</span><span>知行社</span><span>晨光学院</span><span>青禾教育</span><span>远山书院</span><span>小满工坊</span><span>知行社</span></div></div></div></article>
+</body></html>

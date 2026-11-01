@@ -1,0 +1,552 @@
+<style>
+.l-cap { font-size: 13px; color: var(--muted); text-align: center; }
+.l-col { display: grid; justify-items: center; gap: 12px; }
+
+.l-spin { width: 52px; height: 52px; animation: l-rot 1.4s linear infinite; }
+.l-spin circle { fill: none; stroke: var(--accent); stroke-width: 4.5; stroke-linecap: round; stroke-dasharray: 1 125; animation: l-dash 1.4s ease-in-out infinite; }
+@keyframes l-rot { to { transform: rotate(360deg); } }
+@keyframes l-dash { 0% { stroke-dasharray: 1 125; stroke-dashoffset: 0; } 50% { stroke-dasharray: 90 125; stroke-dashoffset: -30; } 100% { stroke-dasharray: 90 125; stroke-dashoffset: -125; } }
+
+.l-bubble { display: flex; gap: 7px; padding: 13px 18px; background: var(--surface); border-radius: 16px 16px 16px 4px; box-shadow: 0 3px 10px var(--shadow); }
+.l-bubble i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: l-dot 1.2s calc(var(--i) * 160ms) ease-in-out infinite; }
+@keyframes l-dot { 0%, 60%, 100% { transform: none; opacity: .45; } 30% { transform: translateY(-8px); opacity: 1; } }
+
+.l-pg { width: min(82%, 260px); display: grid; gap: 7px; }
+.l-pg-h { display: flex; justify-content: space-between; font-size: 13px; }
+.l-pg-h b { font: 600 13px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.l-track { height: 11px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.l-fill { height: 100%; width: 0; border-radius: 6px; background: repeating-linear-gradient(-45deg, var(--accent) 0 9px, var(--accent-deep) 9px 18px); background-size: 200% 100%; animation: l-stripes 1.1s linear infinite; }
+@keyframes l-stripes { to { background-position: 25.5px 0; } }
+
+.l-ring { position: relative; width: 112px; height: 112px; }
+.l-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.l-ring circle { fill: none; stroke-width: 9; }
+.l-ring .t { stroke: var(--soft); }
+.l-ring .v { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.l-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 700 24px var(--mono); font-variant-numeric: tabular-nums; }
+
+.l-page { position: absolute; inset: 0; padding: 22px 18px; display: grid; align-content: start; gap: 9px; }
+.l-topbar { position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 9px var(--accent); }
+.l-page h4 { margin: 0; font-size: 16px; opacity: 0; transition: opacity .3s; }
+.l-page p { margin: 0; font-size: 13.5px; color: var(--muted); opacity: 0; transition: opacity .3s .1s; }
+.l-page.ready h4, .l-page.ready p { opacity: 1; }
+
+.l-sk-card { width: min(84%, 270px); padding: 13px; background: var(--surface); border-radius: 13px; box-shadow: 0 3px 11px var(--shadow); display: grid; gap: 9px; }
+.l-sk-top { display: flex; gap: 11px; align-items: center; }
+.l-sk { background: linear-gradient(100deg, var(--soft) 30%, var(--stage) 50%, var(--soft) 70%) 0 0 / 220% 100%; animation: l-sk 1.4s linear infinite; border-radius: 6px; color: transparent; }
+@keyframes l-sk { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.l-av { flex: none; width: 42px; height: 42px; border-radius: 50%; }
+.l-t1 { display: block; height: 13px; width: 110px; margin-bottom: 7px; } .l-t2 { display: block; height: 10px; width: 70px; }
+.l-b1 { height: 11px; } .l-b2 { height: 11px; width: 78%; }
+.l-sk-card.ready .l-sk { animation: none; background: none; color: inherit; width: auto; height: auto; }
+.l-sk-card.ready .l-av { width: 42px; height: 42px; background: linear-gradient(145deg, var(--art3), var(--art2)); }
+.l-sk-card.ready > *, .l-sk-card.ready .l-sk-top > * { animation: l-up .3s ease-out; }
+.l-sk-card span { font-size: 13.5px; }
+@keyframes l-up { from { opacity: 0; } }
+
+.l-blur { position: relative; width: min(82%, 260px); height: 170px; border-radius: 12px; overflow: hidden; background: var(--soft); }
+.l-blur div { position: absolute; inset: -18px; background: radial-gradient(circle at 72% 28%, var(--on-art) 0 9%, transparent 9.5%), linear-gradient(158deg, transparent 62%, var(--art2) 62.5%), linear-gradient(204deg, transparent 48%, var(--art1) 48.5%), linear-gradient(var(--art3), var(--art3)); animation: l-blur 4.2s infinite; }
+@keyframes l-blur { 0%, 40% { filter: blur(16px); transform: scale(1.1); } 55%, 90% { filter: blur(0); transform: none; } 100% { filter: blur(16px); transform: scale(1.1); } }
+.l-blur span { position: absolute; left: 9px; bottom: 7px; font-size: 12px; padding: 0 7px; border-radius: 6px; background: var(--surface); }
+
+.l-logo { display: grid; justify-items: center; gap: 7px; }
+.l-logo svg { width: 76px; height: 76px; }
+.l-logo path { fill: var(--accent); fill-opacity: 0; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: round; stroke-dasharray: 1; animation: l-logo 3.6s ease-in-out infinite; }
+@keyframes l-logo { 0% { stroke-dashoffset: 1; fill-opacity: 0; } 45% { stroke-dashoffset: 0; fill-opacity: 0; } 62%, 88% { stroke-dashoffset: 0; fill-opacity: 1; } 100% { stroke-dashoffset: 0; fill-opacity: 0; opacity: 0; } }
+.l-logo b { font-size: 17px; letter-spacing: 3px; animation: l-word 3.6s ease-out infinite; }
+@keyframes l-word { 0%, 50% { opacity: 0; transform: translateY(9px); } 64%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+.l-msgs { height: 28px; overflow: hidden; width: 100%; text-align: center; font-size: 15px; }
+.l-msgs > div { animation: l-msgs 8s cubic-bezier(.3, .9, .3, 1) infinite; }
+.l-msgs p { margin: 0; height: 28px; line-height: 28px; }
+@keyframes l-msgs { 0%, 22% { transform: none; } 25%, 47% { transform: translateY(-28px); } 50%, 72% { transform: translateY(-56px); } 75%, 97% { transform: translateY(-84px); } 100% { transform: translateY(-112px); } }
+.l-hg { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(145deg, var(--art3), var(--art1)); animation: l-tile 1.6s cubic-bezier(.6, 0, .3, 1) infinite; }
+@keyframes l-tile { 0% { transform: none; } 50% { transform: rotate(180deg) scale(.8); border-radius: 50%; } 100% { transform: rotate(360deg); } }
+
+.l-ptr { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.l-ptr-ind { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: grid; place-items: center; }
+.l-ptr-ind i { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--soft); border-top-color: var(--accent); }
+.l-ptr.busy .l-ptr-ind i { animation: l-rot .8s linear infinite; }
+.l-ptr-list { position: absolute; inset: 0; background: var(--stage); padding: 11px 15px; display: grid; gap: 7px; align-content: start; box-shadow: 0 -2px 6px var(--shadow); }
+.l-ptr.back .l-ptr-list { transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
+.l-it { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 9px; font-size: 13.5px; background: var(--surface); }
+.l-it i { flex: none; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(145deg, var(--art3), var(--art1)); }
+.l-it.new { animation: l-new .4s cubic-bezier(.2, 1.2, .4, 1); box-shadow: inset 0 0 0 1.5px var(--accent); }
+@keyframes l-new { from { opacity: 0; transform: translateY(-14px) scale(.95); } }
+
+.l-inf { position: absolute; inset: 0; overflow-y: auto; padding: 11px 15px; display: grid; gap: 7px; align-content: start; scrollbar-width: thin; }
+.l-more { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 7px; font-size: 13px; color: var(--muted); }
+.l-more i { width: 15px; height: 15px; border-radius: 50%; border: 2.4px solid var(--soft); border-top-color: var(--accent); animation: l-rot .8s linear infinite; }
+
+.l-empty { display: grid; justify-items: center; gap: 7px; text-align: center; }
+.l-empty svg { width: 76px; height: 76px; animation: l-float 3s ease-in-out infinite; }
+.l-empty svg * { fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes l-float { 50% { transform: translateY(-7px); } }
+.l-empty h4 { margin: 0; font-size: 15px; }
+.l-empty p { margin: 0 0 3px; font-size: 13px; color: var(--muted); }
+.l-added { position: absolute; inset: 0; padding: 14px; display: grid; gap: 7px; align-content: start; background: var(--stage); }
+
+.l-404 { display: grid; justify-items: center; gap: 5px; text-align: center; }
+.l-num { display: flex; gap: 12px; font: 800 66px/1 var(--mono); color: var(--accent); }
+.l-num span:nth-child(2) { display: inline-block; transform-origin: 50% -30px; animation: l-swing 2.4s ease-in-out infinite; color: var(--gold); }
+@keyframes l-swing { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(-8deg); } }
+.l-404 p { margin: 0 0 7px; font-size: 13.5px; color: var(--muted); }
+
+.l-off { display: grid; justify-items: center; gap: 7px; text-align: center; width: min(86%, 270px); }
+.l-off h4 { margin: 0; font-size: 15px; }
+.l-off p { margin: 0 0 3px; font-size: 13px; color: var(--muted); min-height: 1.6em; }
+.l-off.shake { animation: l-shake .36s; }
+@keyframes l-shake { 25% { transform: translateX(-7px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-3px); } }
+.l-off .btn[disabled] { opacity: .7; cursor: default; }
+.l-mini { display: inline-block; width: 13px; height: 13px; margin-right: 6px; vertical-align: -1px; border-radius: 50%; border: 2px solid var(--accent-ink); border-right-color: transparent; animation: l-rot .7s linear infinite; }
+.l-opt { display: grid; justify-items: center; gap: 9px; }
+.l-opt-b { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 16px; transition: background .12s, color .12s, border-color .12s, transform .1s; }
+.l-opt-b:active { transform: scale(.94); }
+.l-opt-b.liked { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.l-opt-b b { font: 700 16px var(--mono); font-variant-numeric: tabular-nums; }
+.l-opt-t { font-size: 13px; min-height: 1.6em; color: var(--muted); text-align: center; }
+.l-opt-t.bad { color: var(--err); }
+.l-opt-t.bad { animation: l-shake .36s; }
+
+.l-pg-f { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+
+.l-lb { position: relative; height: 48px; width: 150px; padding: 0; overflow: hidden; transition: background .2s; }
+.l-lb .tx { transition: opacity .15s; }
+.l-lb .ring { position: absolute; inset: 0; margin: auto; width: 21px; height: 21px; border-radius: 50%; border: 3px solid var(--accent-ink); border-right-color: transparent; opacity: 0; }
+.l-lb.busy { cursor: wait; opacity: .85; }
+.l-lb.busy .tx { opacity: 0; }
+.l-lb.busy .ring { opacity: 1; animation: l-rot .8s linear infinite; }
+.l-lb.done { background: var(--ok); color: var(--surface); }
+
+.l-err { display: grid; justify-items: center; }
+.l-code { font: 800 44px/1 var(--mono); color: var(--err); animation: l-wob 2.8s ease-in-out infinite; }
+@keyframes l-wob { 0%, 70%, 100% { transform: none; } 75% { transform: rotate(-4deg); } 85% { transform: rotate(4deg); } 92% { transform: rotate(-2deg); } }
+.l-off.ok .l-code { color: var(--ok); animation: none; }
+
+.l-bn { position: absolute; left: 0; right: 0; top: 0; z-index: 3; padding: 8px 14px; font-size: 13.5px; font-weight: 600; text-align: center; color: var(--surface); background: var(--err); transform: translateY(-100%); transition: transform .25s cubic-bezier(.2, .9, .3, 1), background .2s; }
+.l-bn.show { transform: none; }
+.l-bn.back { background: var(--ok); }
+
+.l-perm { display: grid; justify-items: center; gap: 6px; text-align: center; width: min(88%, 280px); }
+.l-perm svg { width: 54px; height: 54px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 30%; animation: l-lock 3s ease-in-out infinite; }
+@keyframes l-lock { 0%, 76%, 100% { transform: none; } 80% { transform: rotate(-10deg); } 86% { transform: rotate(9deg); } 92% { transform: rotate(-5deg); } }
+.l-perm h4 { margin: 0; font-size: 15px; }
+.l-perm p { margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+.l-perm .btn[disabled] { background: var(--soft); color: var(--ink); cursor: default; }
+
+.l-res { display: grid; justify-items: center; gap: 5px; text-align: center; width: min(88%, 280px); }
+.l-res-ic { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; color: var(--surface); background: var(--ok); animation: l-pop .4s cubic-bezier(.2, 1.5, .4, 1); }
+.l-res[data-r="fail"] .l-res-ic { background: var(--err); }
+.l-res-ic svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: l-draw .4s .15s backwards; }
+@keyframes l-pop { from { transform: scale(.4); } }
+@keyframes l-draw { from { stroke-dashoffset: 1; } }
+.l-res h4 { margin: 3px 0 0; font-size: 15px; }
+.l-res p { margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+.l-res-btns { display: flex; gap: 7px; }
+
+.l-ringc { width: 54px; height: 54px; border-radius: 50%; border: 5px solid var(--soft); border-top-color: var(--accent); animation: l-rot .8s linear infinite; }
+
+.l-ind { width: min(74%, 240px); height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.l-ind i { display: block; width: 42%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--gold), var(--accent)); animation: l-ind 1.7s cubic-bezier(.65, 0, .35, 1) infinite; }
+@keyframes l-ind { from { transform: translateX(-100%); } to { transform: translateX(240%); } }
+
+.l-eq { display: flex; gap: 6px; align-items: flex-end; height: 56px; }
+.l-eq i { width: 8px; height: 100%; border-radius: 4px; background: var(--accent); transform-origin: bottom; animation: l-eq 1s calc(var(--i) * 120ms) ease-in-out infinite; }
+@keyframes l-eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: none; } }
+
+.l-orb { position: relative; width: 78px; height: 78px; display: grid; place-items: center; }
+.l-orb::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.l-orb i { position: absolute; border-radius: 50%; border: 1.5px solid var(--line); animation: l-rot 2.6s linear infinite; }
+.l-orb i::after { content: ""; position: absolute; left: 50%; border-radius: 50%; }
+.l-orb i:nth-child(1) { inset: 0; }
+.l-orb i:nth-child(1)::after { top: -6px; width: 11px; height: 11px; margin-left: -5.5px; background: var(--gold); }
+.l-orb i:nth-child(2) { inset: 15px; animation-duration: 1.7s; animation-direction: reverse; }
+.l-orb i:nth-child(2)::after { top: -4.5px; width: 8px; height: 8px; margin-left: -4px; background: var(--art2); }
+
+.l-ping { position: relative; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); margin: 26px; }
+.l-ping::before, .l-ping::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); animation: l-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
+.l-ping::after { animation-delay: .9s; }
+@keyframes l-ping { from { transform: none; opacity: .9; } to { transform: scale(4.5); opacity: 0; } }
+
+.l-stp { width: min(74%, 240px); height: 42px; border-radius: 10px; background: repeating-linear-gradient(45deg, var(--accent) 0 8px, var(--accent-deep) 8px 16px) 0 0 / 22.63px 22.63px; animation: l-stp .75s linear infinite; }
+@keyframes l-stp { to { background-position: 22.63px 0; } }
+
+.l-cube-w { perspective: 240px; }
+.l-cube { position: relative; width: 58px; height: 58px; transform-style: preserve-3d; animation: l-cube 2.1s cubic-bezier(.6, 0, .4, 1) infinite; }
+.l-cube i { position: absolute; inset: 0; border-radius: 11px; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: linear-gradient(140deg, var(--art3), var(--art2)); }
+.l-cube i:nth-child(2) { transform: rotateX(180deg); background: linear-gradient(140deg, var(--art1), var(--accent-deep)); }
+@keyframes l-cube { 0%, 8% { transform: none; } 50%, 58% { transform: rotateX(180deg); } 100% { transform: rotateX(360deg); } }
+
+.l-conic { width: 66px; height: 66px; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--gold) 60%, var(--accent)); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px)); mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px)); animation: l-rot 1s linear infinite; }
+
+.l-bball { display: grid; justify-items: center; }
+.l-bball i { width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, var(--art3), var(--art1) 50%, var(--art2)); animation: l-bb 1.15s infinite; }
+.l-bball b { width: 44px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--shadow); animation: l-bbs 1.15s infinite; }
+@keyframes l-bb { 0%, 100% { transform: translateY(-72px); animation-timing-function: cubic-bezier(.5, 0, .9, .5); } 48% { transform: none; animation-timing-function: linear; } 52% { transform: scale(1.18, .8); transform-origin: 50% 100%; animation-timing-function: linear; } 56% { transform: none; animation-timing-function: cubic-bezier(.1, .5, .5, 1); } }
+@keyframes l-bbs { 0%, 100% { transform: scale(.45); opacity: .45; } 50% { transform: none; opacity: 1; } }
+
+.l-gd { display: grid; grid-template-columns: repeat(3, 18px); gap: 8px; }
+.l-gd i { width: 18px; height: 18px; border-radius: 5px; background: var(--accent); animation: l-gd 1.5s calc(var(--i) * 100ms) ease-in-out infinite; }
+@keyframes l-gd { 0%, 100% { opacity: .22; transform: scale(.82); } 40% { opacity: 1; transform: none; } }
+
+.l-ell { display: flex; align-items: baseline; gap: 6px; font-size: 19px; font-weight: 600; }
+.l-ell b { display: inline-flex; gap: 4px; }
+.l-ell b i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: l-ell .95s calc(var(--i) * 160ms) ease-in-out infinite; }
+@keyframes l-ell { 0%, 100% { opacity: .25; transform: none; } 40% { opacity: 1; transform: translateY(-4px); } }
+</style>
+<div class="advice"><b>按等多久来选（经验值）</b><ul><li>0.1 秒以内：<strong>不用动画</strong></li><li>1 秒以内：<strong>圆环、三点</strong>这类轻量指示</li><li>超过 1 秒：要给<strong>进度感</strong></li><li>知道版式、在等内容：用<strong>骨架屏</strong></li></ul></div>
+<h2 class="group">知道版式，在等内容</h2>
+<article class="sp" data-name="骨架屏" data-en="Skeleton" data-demo="skeleton" data-use="内容到之前先用灰块摆出版式，微光扫过，说明不是卡死。" data-prompt="做一个骨架屏（Skeleton）：用灰色圆和长条占位头像与文字，一道微光从左向右循环扫过；数据到达后淡入替换成真实内容。">
+  <div class="stage"><div class="l-sk-card"><div class="l-sk-top"><div class="l-av l-sk"></div><div><span class="l-t1 l-sk">林老师</span><span class="l-t2 l-sk">3 分钟前</span></div></div><span class="l-b1 l-sk">今晚的作业批改完了，大家进步很快。</span><span class="l-b2 l-sk">明天我们讲表单。</span></div></div>
+</article>
+<article class="sp" data-name="模糊渐显" data-en="Blur-up" data-use="先铺一张糊的小图占住位置，大图到了再慢慢变清楚，不会突然跳一下。" data-prompt="做图片模糊渐显（Blur-up）：先显示放大并模糊 16px 的低清图，高清图加载完成后 600ms 内去掉模糊，比例不变、页面不跳动。">
+  <div class="stage"><div class="l-blur"><div></div><span>示例图</span></div></div>
+</article>
+<h2 class="group">等得不久</h2>
+<article class="sp" data-name="加载动画" data-en="Spinner" data-use="转圈的基本款，AI 不用提示也会写。" data-prompt="做一个加载动画（Spinner）：整体匀速旋转，同时弧线在 1.4 秒内由短变长再变短，圆头描边。">
+  <div class="stage"><svg class="l-spin" viewBox="0 0 50 50" role="img" aria-label="加载中"><circle cx="25" cy="25" r="20" pathLength="125"/></svg></div>
+</article>
+<article class="sp" data-name="圆环" data-en="Ring Spinner" data-use="最通用的加载圈：一圈浅色轨道，一段深色在上面转。" data-prompt="做一个圆环加载动画：一圈 5px 浅色轨道，顶部一段橙色，匀速旋转，0.8 秒一圈。">
+  <div class="stage"><div class="l-ringc" role="img" aria-label="加载中"></div></div>
+</article>
+<article class="sp" data-name="渐变光环" data-en="Conic Spinner" data-use="圆环带一条会淡出的尾巴，比普通圆环精致，高级感来自颜色渐变。" data-prompt="做一个渐变光环加载动画：用 conic-gradient 画从透明到橙色的圆环，再用 mask 挖空中间，尾巴逐渐变淡，匀速旋转，1 秒一圈。">
+  <div class="stage"><div class="l-conic" role="img" aria-label="加载中"></div></div>
+</article>
+<article class="sp" data-name="三点跳动" data-en="Typing Dots" data-use="对方正在回复。放在聊天气泡里，AI 对话产品几乎都用它。" data-prompt="做一个正在输入气泡：三个圆点依次上跳 8px 并变亮，每个延迟 160ms，1.2 秒一轮，放在聊天气泡里。">
+  <div class="stage"><div class="l-col"><div class="l-bubble"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i></div><div class="l-cap">AI 正在回复</div></div></div>
+</article>
+<article class="sp" data-name="省略号" data-en="Ellipsis" data-use="放在文字后面最省事，一行字就能说明「还在加载」，不占地方。" data-prompt="做一个文字省略号加载：「加载中」后面三个小圆点依次亮起并上跳 4px，每个延迟 160ms，0.95 秒一轮。">
+  <div class="stage"><div class="l-ell">加载中<b><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i></b></div></div>
+</article>
+<article class="sp" data-name="按钮加载状态" data-en="Loading Button" data-demo="loadBtn" data-hint="点击" data-use="点完提交，按钮转圈且点不了，重复提交就不会发生。" data-prompt="做按钮加载状态（Loading Button）：点击后按钮禁用，文字换成转圈，宽度保持不变；完成后恢复。">
+  <div class="stage"><button class="btn l-lb" type="button"><span class="tx">提交订单</span><span class="ring"></span></button></div>
+</article>
+<article class="sp" data-name="均衡器" data-en="Equalizer" data-use="语音、音频转写的场景。几根竖条依次起伏，一看就和声音有关。" data-prompt="做一个均衡器加载动画：5 根圆头竖条从底部向上伸缩，高度在 30% 到 100% 之间变化，每根晚 120ms，1 秒一轮。">
+  <div class="stage"><div class="l-col"><div class="l-eq"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i></div><div class="l-cap">正在转写语音</div></div></div>
+</article>
+<article class="sp" data-name="轨道环绕" data-en="Orbit" data-use="两颗小球绕着中心反向转，看起来很忙，适合科技感的产品。" data-prompt="做一个轨道环绕加载动画：中心一个圆点，外面两条细圆轨道，各有一颗小球反向旋转，外圈 2.6 秒一圈，内圈 1.7 秒一圈。">
+  <div class="stage"><div class="l-orb" role="img" aria-label="加载中"><i></i><i></i></div></div>
+</article>
+<article class="sp" data-name="脉冲扩散" data-en="Ping" data-use="中心不动，圆圈一层层往外散，常用于「正在定位」「正在搜索附近」。" data-prompt="做一个脉冲扩散加载动画：中心实心圆点不动，两圈描边圆向外放大 4.5 倍并淡出，1.8 秒一轮，第二圈晚 0.9 秒。">
+  <div class="stage"><div class="l-col"><div class="l-ping"></div><div class="l-cap">正在定位</div></div></div>
+</article>
+<article class="sp" data-name="方块翻转" data-en="Flip Cube" data-use="一个方块上下翻面，有厚度感，比转圈更有记忆点。" data-prompt="做一个方块翻转加载动画：圆角方块绕 X 轴翻转 180 度，停一下再翻回来，正反两面颜色不同，2.1 秒一轮，带透视。">
+  <div class="stage"><div class="l-cube-w"><div class="l-cube" role="img" aria-label="加载中"><i></i><i></i></div></div></div>
+</article>
+<article class="sp" data-name="弹跳球" data-en="Bouncing Ball" data-use="活泼的等待动画。影子跟着变大变小，球才像真的落在地上。" data-prompt="做一个弹跳球加载动画：小球下落加速、上升减速，落地时压扁一下，地上的影子随高度缩放，1.15 秒一轮。">
+  <div class="stage"><div class="l-bball" role="img" aria-label="加载中" style="padding-top:60px"><i></i><b></b></div></div>
+</article>
+<article class="sp" data-name="九宫闪烁" data-en="Grid Pulse" data-use="九个小方块依次亮起，像一道波纹扫过，适合数据、仪表盘类页面。" data-prompt="做一个九宫闪烁加载动画：3×3 小方块依次变亮并微微放大，每格延迟 100ms，1.5 秒一轮，形成波纹感。">
+  <div class="stage"><div class="l-gd" role="img" aria-label="加载中"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i></div></div>
+</article>
+<h2 class="group">等得久，要给进度感</h2>
+<article class="sp" data-name="进度条" data-en="Progress Bar" data-demo="bar" data-use="上传大文件这种耗时的活用它，完成多少、还差多久都看得到。" data-prompt="做一个进度条（Progress Bar）：斜条纹底色持续向右流动，上方显示任务名和百分比，下方显示已传大小和剩余时间，宽度随真实进度平滑增长。">
+  <div class="stage"><div class="l-pg"><div class="l-pg-h"><span>上传课程视频</span><b>0%</b></div><div class="l-track"><div class="l-fill"></div></div><div class="l-pg-f"><span class="sz"></span><span class="eta"></span></div></div></div>
+</article>
+<article class="sp" data-name="环形进度" data-en="Circular Progress" data-demo="ring" data-use="和进度条是同一件事，但占地小，适合放在卡片或按钮里。" data-prompt="做一个环形进度：SVG 圆环从 12 点方向顺时针增长，用 stroke-dashoffset 控制，圆环中间显示百分比数字。">
+  <div class="stage"><div class="l-ring"><svg viewBox="0 0 100 100"><circle class="t" cx="50" cy="50" r="42"/><circle class="v" cx="50" cy="50" r="42" pathLength="1"/></svg><b>0%</b></div></div>
+</article>
+<article class="sp" data-name="不确定进度条" data-en="Indeterminate Progress" data-use="不知道还要多久时用。一小段在轨道上来回走，只表示「还在忙」，不给百分比。" data-prompt="做一个不确定进度条：细长轨道，一段占 42% 宽的渐变色块从左到右循环滑过，1.7 秒一轮，两头慢、中间快，不显示百分比。">
+  <div class="stage"><div class="l-ind" role="img" aria-label="加载中"><i></i></div></div>
+</article>
+<article class="sp" data-name="斜纹滚动" data-en="Barber Stripes" data-use="像理发店灯柱，斜条纹一直往前走，动感强，等待时不显得卡住。" data-prompt="做一个斜纹滚动加载条：45 度深浅相间的条纹在圆角长条里匀速向右移动，0.75 秒循环一次，首尾无缝衔接。">
+  <div class="stage"><div class="l-stp" role="img" aria-label="加载中"></div></div>
+</article>
+<article class="sp" data-name="顶部细线加载条" data-en="Top Loading Bar" data-demo="topbar" data-use="网页切换页面时贴着顶部走的那条线，存在感低，用户知道在动就行。" data-prompt="做一个页面顶部细线加载条（NProgress 风格）：3px 高，先快速走到 80% 再放慢，内容就绪时冲到 100% 并淡出。">
+  <div class="stage"><div class="l-page"><div class="l-topbar"></div><h4>第 3 讲：弹窗怎么选</h4><p>打断程度从重到轻排一遍，就知道该用哪一种了。</p><p>这段文字要等加载条走完才出现。</p></div></div>
+</article>
+<article class="sp" data-name="加载文案轮播" data-en="Loading Messages" data-use="AI 生成这种要等几十秒的任务。告诉用户正在做哪一步，等待就有了盼头。" data-prompt="做一个加载文案轮播：一行文字垂直滚动切换，每 2 秒一句，说明当前步骤，比如「正在读取需求」「正在排版」，上方配小动画。">
+  <div class="stage"><div class="l-col" style="width:100%"><div class="l-hg"></div><div class="l-msgs" aria-live="off"><div><p>正在读取你的需求</p><p>正在挑选配色</p><p>正在排版内容</p><p>马上就好</p><p>正在读取你的需求</p></div></div></div></div>
+</article>
+<article class="sp" data-name="品牌开屏" data-en="Logo Splash" data-use="App 启动、大型页面首次打开。把等待时间用来露一次品牌。" data-prompt="做一个品牌开屏：Logo 先用描边一笔画出，再填充实色，产品名从下方淡入，整个过程不超过 2.5 秒。">
+  <div class="stage"><div class="l-logo"><svg viewBox="0 0 80 80"><path pathLength="1" d="M40 6 L51 29 L75 33 L58 51 L62 75 L40 64 L18 75 L22 51 L5 33 L29 29 Z"/></svg><b>你的产品</b></div></div>
+</article>
+<h2 class="group">列表更新</h2>
+<article class="sp" data-name="下拉刷新" data-en="Pull to Refresh" data-demo="pull" data-hint="按住列表往下拉" data-use="手指往下拖，松开后顶上转一圈，新内容就到了。" data-prompt="做下拉刷新（Pull to Refresh）：列表跟手下拉并有阻尼，超过 56px 松手后顶部转圈，新内容从上方滑入，然后列表回弹；不够距离就直接回弹。">
+  <div class="stage"><div class="l-ptr"><div class="l-ptr-ind"><i></i></div><div class="l-ptr-list"><div class="l-it"><i></i>第 2 讲作业已批改</div><div class="l-it"><i></i>小组讨论：怎么写提示词</div><div class="l-it"><i></i>本周直播回放</div><div class="l-it"><i></i>学习群公告</div></div></div></div>
+</article>
+<article class="sp" data-name="无限滚动" data-en="Infinite Scroll" data-demo="infinite" data-hint="滚动这个框" data-use="信息流。滑到底自动接着加载，用户不用点「下一页」。" data-prompt="做无限滚动：列表滚到距离底部 80px 时显示小转圈，加载完下一批后追加到列表末尾，加载中不重复触发。">
+  <div class="stage"><div class="l-inf" tabindex="0" aria-label="滚动示例"></div></div>
+</article>
+<article class="sp" data-name="乐观更新" data-en="Optimistic UI" data-demo="optimistic" data-hint="点赞；每隔一次会模拟失败" data-use="不等服务器回话就先显示成功，万一失败再退回去告诉用户，手感会很快。" data-prompt="点赞用乐观更新（Optimistic UI）：点击瞬间就变高亮、数字加 1，不等服务器返回；请求失败时回退到原状态并提示「没点上，再试一次」。">
+  <div class="stage"><div class="l-opt"><button class="l-opt-b" type="button" aria-pressed="false">♥ <b>128</b></button><div class="l-opt-t">不等服务器，先变再说</div></div></div>
+</article>
+<h2 class="group">出错和没内容</h2>
+<article class="sp" data-name="空状态" data-en="Empty State" data-demo="empty" data-hint="点按钮" data-use="列表没东西时别留白，说明为什么是空的，再给一个能点的下一步。" data-prompt="做一个空状态页（Empty State）：线稿插图轻微上下浮动，一句话说明为什么是空的，下面放一个主按钮引导下一步。">
+  <div class="stage"><div class="l-empty"><svg viewBox="0 0 80 80"><path d="M12 32 L40 18 L68 32 L40 46 Z"/><path d="M12 32 V58 L40 72 L68 58 V32"/><path d="M40 46 V72"/></svg><h4>还没有作业</h4><p>交了第一份，老师的评语会出现在这里。</p><button class="btn sm" type="button">交第一份作业</button></div></div>
+</article>
+<article class="sp" data-name="404 页面" data-en="Not Found" data-use="页面找不到时的出口。语气可以轻松点，但一定要有回首页的按钮。" data-prompt="做一个 404 页面（Not Found）：大号数字 404，中间的 0 像吊灯一样左右摇摆；下面一句有趣的话说明页面不见了，加一个「回首页」按钮。">
+  <div class="stage"><div class="l-404"><div class="l-num"><span>4</span><span>0</span><span>4</span></div><p>这个页面搬家了，没留新地址。</p><button class="btn sm" type="button">回首页</button></div></div>
+</article>
+<article class="sp" data-name="错误页" data-en="Error Page" data-demo="retry" data-hint="点「重试」，第二次会成功" data-use="服务器出问题时说清楚不是用户的错，给一个「重试」。" data-prompt="做一个服务器错误页（Error Page）：大号 500 轻微晃动，说明不是用户的问题，给重试按钮；点重试后按钮转圈，失败时抖动提示，成功后显示已恢复。">
+  <div class="stage"><div class="l-off l-err"><div class="l-code">500</div><h4>服务器开小差了</h4><p>不是你的问题，我们正在修。</p><button class="btn sm" type="button">重试</button></div></div>
+</article>
+<article class="sp" data-name="断网提示" data-en="Offline" data-demo="offline" data-hint="点按钮模拟断网" data-use="网断了顶部滑下一条提示，网回来后自己收起。" data-prompt="做断网提示（Offline）：监听网络状态，断网时顶部滑下红色横条「网络已断开」；恢复后变绿显示「已恢复连接」，2 秒后自动收起。">
+  <div class="stage"><div class="l-bn" role="status"></div><div class="fake"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><button class="btn" type="button">模拟断网</button></div>
+</article>
+<article class="sp" data-name="没有权限" data-en="No Permission" data-demo="permission" data-hint="点申请" data-use="写清缺哪项权限、该找谁开，顺手放一个申请按钮。" data-prompt="做一个无权限页（No Permission）：锁图标轻轻晃动，说明缺什么权限、谁能开通，放一个「申请权限」按钮，点击后变成「已发送申请」。">
+  <div class="stage"><div class="l-perm"><svg viewBox="0 0 48 48"><rect x="11" y="21" width="26" height="20" rx="4"/><path d="M16 21v-6a8 8 0 0 1 16 0v6"/><circle cx="24" cy="31" r="2"/></svg><h4>你还不能查看这份报表</h4><p>需要「财务查看」权限，由管理员开通。</p><button class="btn sm" type="button">申请权限</button></div></div>
+</article>
+<article class="sp" data-name="结果页" data-en="Result" data-demo="result" data-hint="点按钮切换成功和失败" data-use="操作结束后的交代：成功就给下一步，失败就说明原因，并能回去改。" data-prompt="做一个结果页（Result）：成功态显示绿色对勾和下一步按钮；失败态显示红色叉，写清失败原因，并提供「返回修改」按钮。">
+  <div class="stage"><div class="l-res" data-r="ok"></div></div>
+</article>
+<script>
+demo.ring = (stage, U) => {
+  const arc = stage.querySelector('.v');
+  const out = stage.querySelector('b');
+  const run = () => U.tween(2600, (p) => {
+    const e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    arc.style.strokeDashoffset = 1 - e;
+    out.textContent = Math.round(e * 100) + '%';
+  });
+  stage.addEventListener('inview', run);
+  U.loop(stage, run, 4000);
+};
+demo.topbar = (stage, U) => {
+  const bar = stage.querySelector('.l-topbar');
+  const page = stage.querySelector('.l-page');
+  const run = () => {
+    page.classList.remove('ready');
+    bar.style.opacity = 1;
+    bar.getAnimations().forEach((a) => a.cancel());
+    const anim = bar.animate([
+      { transform: 'scaleX(0)' }, { transform: 'scaleX(.8)', offset: .35 },
+      { transform: 'scaleX(.88)', offset: .85 }, { transform: 'scaleX(1)' },
+    ], { duration: 2000, easing: 'ease-out', fill: 'forwards' });
+    anim.onfinish = () => { page.classList.add('ready'); bar.style.opacity = 0; };
+  };
+  stage.addEventListener('inview', run);
+  U.loop(stage, run, 4400);
+};
+demo.skeleton = (stage, U) => {
+  const card = stage.querySelector('.l-sk-card');
+  U.loop(stage, () => card.classList.toggle('ready'), 2600);
+};
+demo.pull = (stage, U) => {
+  const box = stage.querySelector('.l-ptr');
+  const list = box.querySelector('.l-ptr-list');
+  const NEWS = ['刚刚：老师发了新课件', '刚刚：林小满交了作业', '刚刚：直播改到周五'];
+  const TRIGGER = 56;
+  let start = null, y = 0, busy = false, n = 0;
+  const move = (v) => { y = v; list.style.transform = 'translateY(' + v + 'px)'; box.querySelector('.l-ptr-ind i').style.transform = 'rotate(' + v * 5 + 'deg)'; };
+  const refresh = () => {
+    busy = true;
+    box.classList.add('back', 'busy');
+    box.querySelector('.l-ptr-ind i').style.transform = '';
+    move(TRIGGER);
+    setTimeout(() => {
+      const item = document.createElement('div');
+      item.className = 'l-it new';
+      const icon = document.createElement('i');
+      item.append(icon, NEWS[n++ % NEWS.length]);
+      list.prepend(item);
+      while (list.children.length > 4) list.lastChild.remove();
+      box.classList.remove('busy');
+      move(0);
+      setTimeout(() => { busy = false; }, 320);
+    }, 1100);
+  };
+  box.addEventListener('pointerdown', (e) => { if (busy) return; start = e.clientY; box.setPointerCapture(e.pointerId); box.classList.remove('back'); });
+  box.addEventListener('pointermove', (e) => { if (start !== null) move(Math.max(0, (e.clientY - start) * .55)); });
+  const end = () => {
+    if (start === null) return;
+    start = null;
+    if (y >= TRIGGER) refresh(); else { box.classList.add('back'); move(0); }
+  };
+  box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', end);
+  U.auto(stage, () => {
+    if (busy) return;
+    box.classList.remove('back');
+    U.tween(800, (p) => move(70 * U.easeOut(p)), refresh);
+  }, 4600);
+};
+demo.infinite = (stage, U) => {
+  const box = stage.querySelector('.l-inf');
+  const LIMIT = 42, BATCH = 6; // One batch must overflow the box, or no scroll event ever fires.
+  const more = document.createElement('div');
+  more.className = 'l-more';
+  more.innerHTML = '<i></i>正在加载更多';
+  box.appendChild(more);
+  let n = 0, busy = false;
+  const addBatch = () => {
+    for (let k = 0; k < BATCH; k++) {
+      n++;
+      const it = document.createElement('div');
+      it.className = 'l-it';
+      const ic = document.createElement('i');
+      it.append(ic, '第 ' + n + ' 条学员动态');
+      box.insertBefore(it, more);
+    }
+  };
+  const near = () => box.scrollTop + box.clientHeight >= box.scrollHeight - 80;
+  const check = () => {
+    if (busy || !near()) return;
+    if (n >= LIMIT) { more.textContent = '到底了，这是示例数据'; return; }
+    busy = true;
+    setTimeout(() => { addBatch(); busy = false; }, 800);
+  };
+  addBatch();
+  box.addEventListener('scroll', check);
+  // Track position in a float: browsers may round scrollTop, which would stall sub-pixel steps.
+  let pos = 0;
+  U.frame(stage, () => {
+    if (stage.dataset.touched) return;
+    pos += .6;
+    if (n >= LIMIT && pos + box.clientHeight >= box.scrollHeight - 1) pos = 0;
+    box.scrollTop = pos;
+  });
+};
+demo.empty = (stage) => {
+  const btn = stage.querySelector('.btn');
+  btn.addEventListener('click', () => {
+    const panel = document.createElement('div');
+    panel.className = 'l-added';
+    panel.innerHTML = '<div class="l-it new"><i></i>第 1 份作业已提交</div>';
+    const back = document.createElement('button');
+    back.className = 'btn line sm'; back.type = 'button'; back.textContent = '回到空状态'; back.style.justifySelf = 'start';
+    back.addEventListener('click', () => panel.remove());
+    panel.appendChild(back);
+    stage.insertBefore(panel, stage.querySelector('.hint'));
+  });
+};
+demo.optimistic = (stage, U) => {
+  const btn = stage.querySelector('.l-opt-b');
+  const num = btn.querySelector('b');
+  const tip = stage.querySelector('.l-opt-t');
+  const REST = '不等服务器，先变再说';
+  let liked = false, count = 128, attempts = 0, pending = false;
+  const paint = () => { btn.classList.toggle('liked', liked); btn.setAttribute('aria-pressed', String(liked)); num.textContent = count; };
+  const act = () => {
+    if (pending) return;
+    pending = true;
+    const before = { liked, count };
+    liked = !liked;
+    count += liked ? 1 : -1;
+    paint();
+    tip.classList.remove('bad');
+    tip.textContent = '已显示成功，服务器还在处理…';
+    const fails = attempts++ % 2 === 1;
+    setTimeout(() => {
+      pending = false;
+      if (fails) {
+        liked = before.liked; count = before.count;
+        paint();
+        void tip.offsetWidth;
+        tip.classList.add('bad');
+        tip.textContent = '没点上，已回退，再试一次';
+      } else tip.textContent = '服务器确认成功';
+    }, 900);
+    setTimeout(() => { if (!pending && !tip.classList.contains('bad')) tip.textContent = REST; }, 2300);
+  };
+  btn.addEventListener('click', act);
+  U.auto(stage, act, 3000);
+};
+demo.bar = (stage, U) => {
+  const fill = stage.querySelector('.l-fill');
+  const out = stage.querySelector('.l-pg-h b');
+  const size = stage.querySelector('.sz');
+  const eta = stage.querySelector('.eta');
+  const TOTAL_MB = 480;
+  let v = 0, hold = 0;
+  U.loop(stage, () => {
+    if (hold > 0) { hold--; if (!hold) v = 0; }
+    else { v = Math.min(100, v + 1 + Math.random() * 3); if (v === 100) hold = 8; }
+    fill.style.width = v + '%';
+    out.textContent = Math.round(v) + '%';
+    size.textContent = Math.round(TOTAL_MB * v / 100) + ' / ' + TOTAL_MB + ' MB';
+    eta.textContent = v === 100 ? '已完成' : '还剩约 ' + Math.ceil((100 - v) / 15) + ' 秒';
+  }, 160);
+};
+demo.loadBtn = (stage, U) => {
+  const b = stage.querySelector('.l-lb');
+  const tx = b.querySelector('.tx');
+  const run = () => {
+    if (b.disabled || b.classList.contains('done')) return;
+    b.disabled = true;
+    b.classList.add('busy');
+    setTimeout(() => {
+      b.classList.remove('busy');
+      b.classList.add('done');
+      tx.textContent = '✓ 已提交';
+      setTimeout(() => { b.disabled = false; b.classList.remove('done'); tx.textContent = '提交订单'; }, 1400);
+    }, 1400);
+  };
+  b.addEventListener('click', run);
+  U.auto(stage, run, 4600);
+  stage.addEventListener('inview', run);
+};
+demo.retry = (stage) => {
+  const box = stage.querySelector('.l-off');
+  const code = box.querySelector('.l-code');
+  const title = box.querySelector('h4');
+  const msg = box.querySelector('p');
+  const btn = box.querySelector('.btn');
+  let tries = 0;
+  const reset = () => {
+    tries = 0;
+    box.classList.remove('ok');
+    code.textContent = '500';
+    title.textContent = '服务器开小差了';
+    msg.textContent = '不是你的问题，我们正在修。';
+    btn.textContent = '重试';
+  };
+  btn.addEventListener('click', () => {
+    if (box.classList.contains('ok')) { reset(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="l-mini"></span>连接中';
+    setTimeout(() => {
+      btn.disabled = false;
+      tries++;
+      if (tries === 1) {
+        btn.textContent = '重试';
+        msg.textContent = '还没修好，稍等再试一次。';
+        box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      } else {
+        box.classList.add('ok');
+        code.textContent = '✓';
+        title.textContent = '已恢复';
+        msg.textContent = '内容已经重新加载。';
+        btn.textContent = '再演示一次';
+      }
+    }, 1200);
+  });
+};
+demo.offline = (stage, U) => {
+  const bar = stage.querySelector('.l-bn');
+  const btn = stage.querySelector('.btn');
+  let busy = false;
+  const run = () => {
+    if (busy) return;
+    busy = true;
+    bar.classList.remove('back');
+    bar.textContent = '网络已断开，内容可能不是最新的';
+    bar.classList.add('show');
+    setTimeout(() => {
+      bar.classList.add('back');
+      bar.textContent = '已恢复连接';
+      setTimeout(() => { bar.classList.remove('show'); busy = false; }, 2000);
+    }, 2200);
+  };
+  btn.addEventListener('click', run);
+  U.auto(stage, run, 6000);
+  stage.addEventListener('inview', run);
+};
+demo.permission = (stage) => {
+  const btn = stage.querySelector('.btn');
+  btn.addEventListener('click', () => { btn.disabled = true; btn.textContent = '✓ 已发送申请'; });
+};
+demo.result = (stage, U) => {
+  const box = stage.querySelector('.l-res');
+  const ICONS = { ok: 'M5 13l5 5 9-11', fail: 'M6 6l12 12M18 6L6 18' };
+  const render = (kind) => {
+    box.dataset.r = kind;
+    box.innerHTML = '<div class="l-res-ic"><svg viewBox="0 0 24 24"><path pathLength="1" d="' + ICONS[kind] + '"/></svg></div>' + (kind === 'ok'
+      ? '<h4>报名成功</h4><p>下一步：加入学习群，领第一讲课件。</p><div class="l-res-btns"><button class="btn sm" type="button">加入学习群</button><button class="btn line sm" type="button" data-to="fail">看失败态</button></div>'
+      : '<h4>报名失败</h4><p>手机号格式不对，少了 1 位。</p><div class="l-res-btns"><button class="btn sm" type="button">返回修改</button><button class="btn line sm" type="button" data-to="ok">看成功态</button></div>');
+  };
+  box.addEventListener('click', (e) => { const t = e.target.closest('[data-to]'); if (t) render(t.dataset.to); });
+  render('ok');
+  U.auto(stage, () => render(box.dataset.r === 'ok' ? 'fail' : 'ok'), 3200);
+};
+</script>

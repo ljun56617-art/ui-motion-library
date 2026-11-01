@@ -1,0 +1,135 @@
+<!doctype html>
+<!--
+名称：密码强度（Password Strength）
+编号：04-forms/17
+什么时候用：边输边看强度条变色，眼睛图标能切换显示和隐藏。
+一句话提示词：做一个密码框（Password Strength）：右侧眼睛图标切换明文和密文；下方 4 格强度条按长度、大小写、数字、符号实时变色，从红到绿。
+操作提示：改一改密码
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>密码强度</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.f-col { width: min(84%, 270px); display: grid; gap: 14px; }
+.f-field { position: relative; }
+.f-input { width: 100%; padding: 12px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); outline: none; transition: border-color .2s, box-shadow .2s; }
+.f-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.f-pw { padding-right: 56px; }
+.f-eye { position: absolute; right: 7px; top: 7px; border: 0; background: none; cursor: pointer; font-size: 13px; color: var(--accent); padding: 4px 6px; }
+.f-str { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.f-str i { height: 5px; border-radius: 3px; background: var(--line); transition: background .25s; }
+.f-str[data-n="1"] i:nth-child(-n+1) { background: var(--err); }
+.f-str[data-n="2"] i:nth-child(-n+2) { background: var(--gold); }
+.f-str[data-n="3"] i:nth-child(-n+3) { background: var(--gold); }
+.f-str[data-n="4"] i { background: var(--ok); }
+.f-small { font-size: 13px; color: var(--muted); min-height: 1.6em; }
+</style></head>
+<body><article class="sp" data-name="密码强度" data-en="Password Strength" data-demo="password" data-hint="改一改密码" data-use="边输边看强度条变色，眼睛图标能切换显示和隐藏。" data-prompt="做一个密码框（Password Strength）：右侧眼睛图标切换明文和密文；下方 4 格强度条按长度、大小写、数字、符号实时变色，从红到绿。"><div class="stage"><div class="f-col"><div class="f-field"><input class="f-input f-pw" id="f-pw" type="password" value="Leap2026" aria-label="密码" autocomplete="off"><button class="f-eye" type="button" aria-label="显示密码" aria-pressed="false">👁</button></div><div class="f-str"><i></i><i></i><i></i><i></i></div><div class="f-small"></div></div></div></article>
+<script>window.demo = {};
+demo.password = (stage) => {
+  const input = stage.querySelector('input');
+  const eye = stage.querySelector('.f-eye');
+  const bars = stage.querySelector('.f-str');
+  const tip = stage.querySelector('.f-small');
+  const WORDS = ['太弱了', '有点弱', '还可以', '够强了'];
+  const score = (v) => [v.length >= 8, /[a-z]/.test(v) && /[A-Z]/.test(v), /\d/.test(v), /[^\w]/.test(v)].filter(Boolean).length;
+  const update = () => {
+    const n = input.value ? Math.max(1, score(input.value)) : 0;
+    bars.dataset.n = n;
+    tip.textContent = n ? '强度：' + WORDS[n - 1] : '至少 8 位，混合大小写、数字和符号';
+  };
+  eye.addEventListener('click', () => {
+    const hidden = input.type === 'password';
+    input.type = hidden ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(hidden));
+    eye.setAttribute('aria-label', hidden ? '隐藏密码' : '显示密码');
+    eye.style.opacity = hidden ? 1 : .55;
+  });
+  eye.style.opacity = .55;
+  input.addEventListener('input', update);
+  update();
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>
