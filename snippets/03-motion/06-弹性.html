@@ -2,9 +2,10 @@
 <!--
 名称：弹性（Spring）
 编号：03-motion/06
-什么时候用：先过头一点再退回来，带果冻的质感，适合轻松的界面。
-关键参数：过冲 1.16 → 回弹 0.93 → 稳定
-一句话提示词：做弹性动效（Spring）：元素放大时冲到 1.16 倍，回弹到 0.93，再稳定到 1，像果冻一样，总时长约 300ms。
+什么时候用：先冲过头再晃回来，带果冻的质感，适合轻松的界面。阻尼比小于 1 才会晃，越小晃得越多；等于 1 就稳稳停住。
+关键参数：JS 弹簧 · 刚度 260 · 阻尼比 0.4 · 不写死时长
+一句话提示词：做弹性动效（Spring）：用 JS 每帧计算的弹簧动画，刚度 260、阻尼比 0.4，元素从 0.4 倍弹到 1 倍，冲过头到 1.15 倍左右再晃两下停住；时长由弹簧自己算，不要用写死的关键帧。
+操作提示：点方块再弹一次
 移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
       演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
 -->
@@ -48,10 +49,129 @@ button, input, textarea, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
 /* 标本 */
 .o { width: 92px; height: 92px; border-radius: 18px; background: linear-gradient(145deg, var(--art3), var(--art1) 55%, var(--art2)); box-shadow: 0 10px 22px var(--shadow); color: var(--on-art); display: grid; place-items: center; font-weight: 700; }
-.a-spring { animation: a-spring 2.4s infinite; }
-@keyframes a-spring { 0% { transform: scale(.4); opacity: 0; } 8% { opacity: 1; }
-  18% { transform: scale(1.16); } 30% { transform: scale(.93); } 42% { transform: scale(1.03); } 54%, 88% { transform: none; opacity: 1; }
-  100% { transform: scale(.4); opacity: 0; } }
+.a-spring { border: 0; font: inherit; font-weight: 700; cursor: pointer; will-change: transform; }
 </style></head>
-<body><article class="sp" data-name="弹性" data-en="Spring" data-params="过冲 1.16 → 回弹 0.93 → 稳定" data-use="先过头一点再退回来，带果冻的质感，适合轻松的界面。" data-prompt="做弹性动效（Spring）：元素放大时冲到 1.16 倍，回弹到 0.93，再稳定到 1，像果冻一样，总时长约 300ms。"><div class="stage"><div class="o a-spring">Spring</div></div></article>
+<body><article class="sp" data-name="弹性" data-en="Spring" data-demo="pop" data-hint="点方块再弹一次" data-params="JS 弹簧 · 刚度 260 · 阻尼比 0.4 · 不写死时长" data-use="先冲过头再晃回来，带果冻的质感，适合轻松的界面。阻尼比小于 1 才会晃，越小晃得越多；等于 1 就稳稳停住。" data-prompt="做弹性动效（Spring）：用 JS 每帧计算的弹簧动画，刚度 260、阻尼比 0.4，元素从 0.4 倍弹到 1 倍，冲过头到 1.15 倍左右再晃两下停住；时长由弹簧自己算，不要用写死的关键帧。"><div class="stage"><button class="o a-spring" type="button">Spring</button></div></article>
+<script>window.demo = {};
+const spring = {
+  // 跟手弹簧：拖拽松手类效果共用的三个小工具，无依赖，整段带走即可。
+  // 用法：按下时 t = spring.tracker()，移动时 t.add(位置)，松手时 v = t.speed()，再 spring.to(当前位置, 终点, v, 画)。
+  //
+  // spring.to(from, to, v, draw, opt, done)：用弹簧把数值从 from 带到 to。
+  //   没有写死的时长：每帧按「刚度 × 距离 − 阻尼 × 速度」算加速度，位置和速度都够小时自己停。
+  //   v          起始速度，单位「每秒多少」，一般填松手速度，这样轻划和猛甩出来的动作不一样；填 0 就是从静止出发
+  //   draw(x, v) 每帧调用一次，拿 x 去改样式
+  //   opt.stiffness 刚度，默认 300。调大：拉得更狠，更快到、更干脆；调小：慢悠悠、发软
+  //   opt.damping   阻尼比，默认 1。等于 1：最快停稳、不来回晃（猛甩时可能冲过终点一次再回来）；
+  //                 小于 1：冲过头再晃回来，越小晃得越多，0.5 大约晃两下，适合俏皮的地方；大于 1：像在糖浆里慢慢挪
+  //   opt.mass      质量，默认 1。调大：更沉，惯性更大，同样一甩冲得更远、停得更慢；调小：更轻、更灵
+  //   opt.rest      停下的门槛，默认 0.1（适合 px）。scale 这类很小的数要调小，比如 0.001
+  //   返回一个函数，调用它可以中途停下（手指再次按住时用）。
+  //   开了系统的「减少动态效果」（prefers-reduced-motion）时直接跳到终点。
+  to(from, to, v, draw, opt = {}, done) {
+    const k = opt.stiffness ?? 300, m = opt.mass ?? 1, rest = opt.rest ?? .1;
+    const c = 2 * (opt.damping ?? 1) * Math.sqrt(k * m);
+    let x = from, raf = 0, stopped = false, last = performance.now();
+    const finish = () => { draw(to, 0); if (done) done(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return () => {}; }
+    const step = (now) => {
+      // Fixed 4 ms sub-steps keep stiff springs stable even when a frame arrives late.
+      for (let dt = Math.min(.064, (now - last) / 1000); dt > 0; dt -= .004) {
+        const h = Math.min(dt, .004);
+        v += (-k * (x - to) - c * v) / m * h;
+        x += v * h;
+      }
+      last = now;
+      if (Math.abs(x - to) < rest && Math.abs(v) < rest * 10) { finish(); return; }
+      draw(x, v);
+      if (!stopped) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  },
+  // spring.rubber(x, min, max, size, c)：橡皮筋。x 在 min 到 max 之间原样返回；拉出边界后越拉越拉不动。
+  //   size  元素在拖动方向上的尺寸（px），拉出去的距离永远到不了它
+  //   c     阻力系数，默认 0.55（iOS 的取值）。调小：边界更硬，几乎拉不动；调大（最多 1）：更松
+  rubber(x, min, max, size, c = .55) {
+    const band = (d) => (1 - 1 / (d * c / size + 1)) * size;
+    return x < min ? min - band(min - x) : x > max ? max + band(x - max) : x;
+  },
+  // spring.tracker()：估算松手速度。add(x) 记下每次指针位置，speed() 用最近 100ms 的位移算出每秒多少 px。
+  //   松手前手指停住超过 80ms，速度算 0，这样「拖过去停一下再松」不会被当成甩。
+  tracker() {
+    let pts = [];
+    return {
+      add(x) {
+        const t = performance.now();
+        pts.push([t, x]);
+        while (pts.length > 2 && t - pts[0][0] > 100) pts.shift();
+      },
+      speed() {
+        const a = pts[0], b = pts[pts.length - 1];
+        pts = [];
+        if (!a || b[0] - a[0] < 1 || performance.now() - b[0] > 80) return 0;
+        return (b[1] - a[1]) / (b[0] - a[0]) * 1000;
+      },
+    };
+  },
+};
+demo.pop = (stage, U) => {
+  const el = stage.querySelector('.a-spring');
+  let stop = () => {};
+  const draw = (s) => {
+    el.style.transform = 'scale(' + s.toFixed(3) + ')';
+    el.style.opacity = Math.min(1, (s - .4) / .3).toFixed(2);
+  };
+  // Damping ratio below 1: it shoots past 1 to about 1.15, swings back under, and settles on its own clock.
+  const pop = () => { stop(); stop = spring.to(.4, 1, 0, draw, { stiffness: 260, damping: .4, rest: .001 }); };
+  el.addEventListener('click', pop);
+  stage.addEventListener('inview', pop);
+  U.auto(stage, pop, 2600);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
 </body></html>

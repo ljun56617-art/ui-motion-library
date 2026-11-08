@@ -66,8 +66,6 @@
 .c-sw { position: absolute; inset: 0; border-radius: 14px; padding: 13px; display: grid; align-content: end; color: var(--on-art); box-shadow: 0 7px 18px var(--shadow); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .c-sw:active { cursor: grabbing; }
 .c-sw b { font-size: 17px; }
-.c-sw.back { transition: transform .35s cubic-bezier(.2, 1.2, .4, 1); }
-.c-sw.fly { transition: transform .35s ease-in, opacity .35s; opacity: 0; }
 .c-sw[data-c="0"] { background: linear-gradient(150deg, var(--art3), var(--art1)); }
 .c-sw[data-c="1"] { background: linear-gradient(150deg, var(--art1), var(--art2)); }
 .c-sw[data-c="2"] { background: linear-gradient(150deg, var(--accent), var(--accent-deep)); }
@@ -252,7 +250,7 @@
 <article class="sp" data-name="堆叠卡" data-en="Stacked Cards" data-demo="stack" data-hint="点最上面那张" data-use="空间有限又有多张内容时。下面露出的边提示「还有更多」。" data-prompt="做一组堆叠卡：多张卡片错开叠放，后面的依次缩小上移；点最上面一张向右飞出，其余向前补位，飞出的回到最底层。">
   <div class="stage"><div class="c-stack"></div></div>
 </article>
-<article class="sp" data-name="滑动卡" data-en="Swipe Card" data-demo="swipe" data-hint="左右拖动卡片" data-use="一次只决定一张，左滑不要、右滑想要。探探模式。" data-prompt="做一个左右滑动卡片：卡片跟手拖动并随距离旋转，出现「想学」或「跳过」印章；超过 90px 飞出，否则回弹。">
+<article class="sp" data-name="滑动卡" data-en="Swipe Card" data-demo="swipe" data-hint="左右拖动卡片，轻划和猛甩各试一次" data-params="弹簧回中 · 阻尼比 0.7 · 松手速度决定飞不飞" data-use="一次只决定一张，左滑不要、右滑想要。探探模式。拖得不远但甩得快，也算滑走。" data-prompt="做一个左右滑动卡片：卡片跟手拖动并随距离旋转，出现「想学」或「跳过」印章；松手时用最近 100ms 的指针位置估算速度，「松手位置 + 速度 × 0.2 秒」超过 90px 就带着这个速度飞出，否则用弹簧动画（刚度 300、阻尼比 0.7）带着松手速度回到中间，不写死时长。">
   <div class="stage"><div class="c-swipe-box"></div></div>
 </article>
 <h2 class="group">标注和收纳</h2>
@@ -382,21 +380,39 @@ demo.swipe = (stage, U) => {
     c.querySelector('.y').style.opacity = Math.max(0, Math.min(1, x / THRESHOLD));
     c.querySelector('.n').style.opacity = Math.max(0, Math.min(1, -x / THRESHOLD));
   };
-  const fly = (c, dir) => {
-    c.classList.add('fly');
-    place(c, dir * 320);
-    setTimeout(() => { c.remove(); make(); }, 360);
+  // Thrown out: the card keeps the release speed (at least 800 px/s) and leaves once it is off the stage.
+  const fly = (c, dir, v) => {
+    c.gone = true;
+    let stop = null, left = false;
+    const leave = () => { if (left) return; left = true; if (stop) stop(); c.remove(); make(); };
+    stop = spring.to(c.x, dir * 600, dir * Math.max(800, Math.abs(v)), (x) => {
+      c.x = x;
+      place(c, x);
+      c.style.opacity = Math.max(0, 1 - (Math.abs(x) - THRESHOLD) / 230);
+      if (Math.abs(x) > 320) leave();
+    }, { stiffness: 200 }, leave);
   };
   function wire(c) {
-    let from = null, x = 0;
-    c.addEventListener('pointerdown', (e) => { from = e.clientX; c.setPointerCapture(e.pointerId); c.classList.remove('back'); });
-    c.addEventListener('pointermove', (e) => { if (from !== null) { x = e.clientX - from; place(c, x); } });
+    let from = null, track = null, stop = () => {};
+    c.x = 0;
+    c.addEventListener('pointerdown', (e) => {
+      if (c.gone) return;
+      stop();
+      from = e.clientX - c.x;
+      track = spring.tracker();
+      track.add(c.x);
+      c.setPointerCapture(e.pointerId);
+    });
+    c.addEventListener('pointermove', (e) => { if (from === null) return; c.x = e.clientX - from; place(c, c.x); track.add(c.x); });
     const up = () => {
       if (from === null) return;
       from = null;
-      if (Math.abs(x) > THRESHOLD) fly(c, Math.sign(x));
-      else { c.classList.add('back'); place(c, 0); }
-      x = 0;
+      const v = track.speed();
+      // Judge by where the throw is heading in about 0.2 s, not only where the finger let go: a quick flick counts.
+      const aim = c.x + v * .2;
+      if (Math.abs(aim) > THRESHOLD) fly(c, Math.sign(aim), v);
+      // Back to the middle with the release speed; damping .7 lets it settle with one small sway, like a real card.
+      else stop = spring.to(c.x, 0, v, (x) => { c.x = x; place(c, x); }, { damping: .7 });
     };
     c.addEventListener('pointerup', up);
     c.addEventListener('pointercancel', up);
@@ -405,9 +421,9 @@ demo.swipe = (stage, U) => {
   let side = 1;
   U.auto(stage, () => {
     const top = box.lastElementChild;
-    if (!top || top.classList.contains('fly')) return;
+    if (!top || top.gone) return;
     const dir = side; side = -side;
-    U.tween(600, (p) => place(top, dir * 110 * U.easeOut(p)), () => fly(top, dir));
+    U.tween(600, (p) => { top.x = dir * 110 * U.easeOut(p); place(top, top.x); }, () => fly(top, dir, dir * 900));
   }, 3200);
 };
 demo.carousel = (stage, U) => {

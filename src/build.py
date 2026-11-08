@@ -20,7 +20,7 @@ PAGES = [
     ("02-modals", "弹窗", "弹窗", "Overlays",
      "同样盖在页面上，有的逼用户马上处理，有的看一眼就没了。按打断程度来选。", 11, "ic-md"),
     ("03-motion", "动效", "动效", "Motion",
-     "每种都标了时长或关键参数。跟 AI 说这些，比说「丝滑一点」有用。", 25, "ic-ball"),
+     "每种都标了时长或关键参数。跟 AI 说这些，比说「丝滑一点」有用。", 26, "ic-ball"),
     ("04-forms", "表单", "表单", "Form Controls",
      "常用的表单控件，都能直接操作。先试手感，再决定让 AI 做哪一种。", 17, "ic-in"),
     ("05-loading", "加载与错误页", "加载与错误页", "Loading & Error States",
@@ -34,11 +34,17 @@ NOTE = "提示词里的时长等具体参数是建议值，可以按需调整。
 STYLE_RE = re.compile(r"<style>(.*?)</style>", re.S)
 SCRIPT_RE = re.compile(r"<script>(.*?)</script>", re.S)
 NAME_RE = re.compile(r'class="sp" data-name="([^"]+)"')
+# Shared spring helper: prepended to any page whose script calls spring.*, so every snippet that
+# uses it carries its own copy (extract.py pulls helpers in by name).
+SPRING_JS = (SRC / "spring.js").read_text(encoding="utf-8")
+SPRING_USE_RE = re.compile(r"\bspring\.")
 
 
 def split_fragment(text: str) -> tuple[str, str, str]:
     css = "\n".join(STYLE_RE.findall(text))
     js = "\n".join(SCRIPT_RE.findall(text))
+    if SPRING_USE_RE.search(js):
+        js = SPRING_JS + "\n" + js
     body = SCRIPT_RE.sub("", STYLE_RE.sub("", text)).strip()
     return css, js, body
 

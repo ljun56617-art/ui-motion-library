@@ -204,7 +204,6 @@ body.paused .stage *, body.paused .stage *::before, body.paused .stage *::after,
 @keyframes b-shine { from { background-position: 100% 0; } to { background-position: -40% 0; } }
 .b-slide .hd { position: absolute; left: 4px; top: 4px; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 20px; cursor: grab; touch-action: none; }
 .b-slide .hd:active { cursor: grabbing; }
-.b-slide.back .hd, .b-slide.back .bar { transition: all .3s cubic-bezier(.3, 1.3, .5, 1); }
 .b-slide.done .lab { animation: none; background: none; color: var(--ok); -webkit-text-fill-color: var(--ok); font-weight: 600; padding-left: 0; }
 .b-sec { padding: 11px 26px; background: var(--soft); color: var(--ink); }
 .b-sec:hover { filter: brightness(.95); transform: translateY(-1px); }
@@ -301,7 +300,7 @@ body.paused .stage *, body.paused .stage *::before, body.paused .stage *::after,
 <article class="sp" data-name="长按确认按钮" data-en="Press and Hold" data-demo="hold" data-hint="按住 1.2 秒" data-use="删除、清空这类手滑会后悔的操作。比弹窗确认更快，也不容易误触。" data-prompt="做一个长按确认按钮：按住时红色从左向右填满，1.2 秒填满后才执行；中途松手就退回去，不执行。">
   <div class="stage"><button class="btn b-hold" type="button"><span class="fill"></span><span class="tx">按住删除作业</span></button></div>
 </article>
-<article class="sp" data-name="滑动确认" data-en="Slide to Confirm" data-demo="slide" data-hint="拖动圆钮到最右" data-use="付款、解锁这类要用户明确同意的动作。手机上单手就能完成。" data-prompt="做一个滑动确认条：拖动圆钮向右，提示文字有光扫过；拖过 85% 判定成功并变绿，没到就回弹到起点。">
+<article class="sp" data-name="滑动确认" data-en="Slide to Confirm" data-demo="slide" data-hint="拖动圆钮到最右，拉过两头试试" data-params="拖过 85% 才算 · 弹簧阻尼比 1 · 两端橡皮筋" data-use="付款、解锁这类要用户明确同意的动作。手机上单手就能完成。只认拖到的位置，甩一下不算同意。" data-prompt="做一个滑动确认条：拖动圆钮向右，提示文字有光扫过；圆钮拉过两端时用橡皮筋阻力（系数 0.55）；松手时圆钮位置过了 85% 判定成功并变绿，没到就回起点。两种结局都用弹簧动画（刚度 300、阻尼比 1），以最近 100ms 估出的松手速度为初速度，不写死时长；只看位置判定，甩得再快也不算确认。">
   <div class="stage"><div class="b-slide"><span class="bar"></span><span class="lab">向右滑动，确认付款</span><button class="hd" type="button" aria-label="拖动确认，也可以按回车">→</button></div></div>
 </article>
 <h2 class="group">一处放多个操作</h2>
@@ -366,7 +365,70 @@ body.paused .stage *, body.paused .stage *::before, body.paused .stage *::after,
 </article>
 <article class="sp" data-name="计数器" data-en="Stepper" data-demo="stepper" data-hint="点加减" data-use="加减号夹着一个数字，改购物车件数就用它。" data-prompt="做一个计数器（Stepper）：左右是加减按钮，夹着当前数字，数字变化时轻轻滚入；减到 1 时减号变灰禁用，上限 9。">
   <div class="stage"><div class="b-step"><button type="button" aria-label="减少">−</button><output>2</output><button type="button" aria-label="增加">+</button></div></div>
-</article></div><p class="note">提示词里的时长等具体参数是建议值，可以按需调整。演示里的课程、人名、价格和文件都是虚构示例。</p><div class="pager"><a href="index.html">← 目录</a><a href="02-modals.html">弹窗 →</a></div></main><script>window.demo={};
+</article></div><p class="note">提示词里的时长等具体参数是建议值，可以按需调整。演示里的课程、人名、价格和文件都是虚构示例。</p><div class="pager"><a href="index.html">← 目录</a><a href="02-modals.html">弹窗 →</a></div></main><script>window.demo={};const spring = {
+  // 跟手弹簧：拖拽松手类效果共用的三个小工具，无依赖，整段带走即可。
+  // 用法：按下时 t = spring.tracker()，移动时 t.add(位置)，松手时 v = t.speed()，再 spring.to(当前位置, 终点, v, 画)。
+  //
+  // spring.to(from, to, v, draw, opt, done)：用弹簧把数值从 from 带到 to。
+  //   没有写死的时长：每帧按「刚度 × 距离 − 阻尼 × 速度」算加速度，位置和速度都够小时自己停。
+  //   v          起始速度，单位「每秒多少」，一般填松手速度，这样轻划和猛甩出来的动作不一样；填 0 就是从静止出发
+  //   draw(x, v) 每帧调用一次，拿 x 去改样式
+  //   opt.stiffness 刚度，默认 300。调大：拉得更狠，更快到、更干脆；调小：慢悠悠、发软
+  //   opt.damping   阻尼比，默认 1。等于 1：最快停稳、不来回晃（猛甩时可能冲过终点一次再回来）；
+  //                 小于 1：冲过头再晃回来，越小晃得越多，0.5 大约晃两下，适合俏皮的地方；大于 1：像在糖浆里慢慢挪
+  //   opt.mass      质量，默认 1。调大：更沉，惯性更大，同样一甩冲得更远、停得更慢；调小：更轻、更灵
+  //   opt.rest      停下的门槛，默认 0.1（适合 px）。scale 这类很小的数要调小，比如 0.001
+  //   返回一个函数，调用它可以中途停下（手指再次按住时用）。
+  //   开了系统的「减少动态效果」（prefers-reduced-motion）时直接跳到终点。
+  to(from, to, v, draw, opt = {}, done) {
+    const k = opt.stiffness ?? 300, m = opt.mass ?? 1, rest = opt.rest ?? .1;
+    const c = 2 * (opt.damping ?? 1) * Math.sqrt(k * m);
+    let x = from, raf = 0, stopped = false, last = performance.now();
+    const finish = () => { draw(to, 0); if (done) done(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return () => {}; }
+    const step = (now) => {
+      // Fixed 4 ms sub-steps keep stiff springs stable even when a frame arrives late.
+      for (let dt = Math.min(.064, (now - last) / 1000); dt > 0; dt -= .004) {
+        const h = Math.min(dt, .004);
+        v += (-k * (x - to) - c * v) / m * h;
+        x += v * h;
+      }
+      last = now;
+      if (Math.abs(x - to) < rest && Math.abs(v) < rest * 10) { finish(); return; }
+      draw(x, v);
+      if (!stopped) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  },
+  // spring.rubber(x, min, max, size, c)：橡皮筋。x 在 min 到 max 之间原样返回；拉出边界后越拉越拉不动。
+  //   size  元素在拖动方向上的尺寸（px），拉出去的距离永远到不了它
+  //   c     阻力系数，默认 0.55（iOS 的取值）。调小：边界更硬，几乎拉不动；调大（最多 1）：更松
+  rubber(x, min, max, size, c = .55) {
+    const band = (d) => (1 - 1 / (d * c / size + 1)) * size;
+    return x < min ? min - band(min - x) : x > max ? max + band(x - max) : x;
+  },
+  // spring.tracker()：估算松手速度。add(x) 记下每次指针位置，speed() 用最近 100ms 的位移算出每秒多少 px。
+  //   松手前手指停住超过 80ms，速度算 0，这样「拖过去停一下再松」不会被当成甩。
+  tracker() {
+    let pts = [];
+    return {
+      add(x) {
+        const t = performance.now();
+        pts.push([t, x]);
+        while (pts.length > 2 && t - pts[0][0] > 100) pts.shift();
+      },
+      speed() {
+        const a = pts[0], b = pts[pts.length - 1];
+        pts = [];
+        if (!a || b[0] - a[0] < 1 || performance.now() - b[0] > 80) return 0;
+        return (b[1] - a[1]) / (b[0] - a[0]) * 1000;
+      },
+    };
+  },
+};
+
+
 demo.outline = (stage, U) => {
   const b = stage.querySelector('.b-outline');
   U.auto(stage, () => b.classList.toggle('fill'), 1700);
@@ -446,24 +508,45 @@ demo.slide = (stage, U) => {
   const lab = box.querySelector('.lab');
   const label = lab.textContent;
   const max = () => box.clientWidth - hd.offsetWidth - 8;
-  const set = (x) => { hd.style.left = (4 + x) + 'px'; bar.style.width = (x + 54) + 'px'; };
-  const reset = () => { box.classList.add('back'); box.classList.remove('done'); lab.textContent = label; hd.textContent = '→'; set(0); };
-  const finish = () => {
-    box.classList.add('back', 'done'); set(max()); lab.textContent = '已确认'; hd.textContent = '✓';
-    setTimeout(reset, 1800);
+  let x = 0, from = null, track = null, stop = () => {};
+  // x may run past either end (a drag or a fast release); the knob is drawn through a rubber band, so it stretches instead of hitting a wall.
+  const set = (v) => {
+    x = v;
+    const s = spring.rubber(v, 0, max(), hd.offsetWidth);
+    hd.style.left = (4 + s) + 'px';
+    bar.style.width = (s + 54) + 'px';
   };
-  let from = null;
-  hd.addEventListener('pointerdown', (e) => { if (box.classList.contains('done')) return; from = e.clientX; hd.setPointerCapture(e.pointerId); box.classList.remove('back'); });
-  hd.addEventListener('pointermove', (e) => { if (from !== null) set(Math.max(0, Math.min(max(), e.clientX - from))); });
-  hd.addEventListener('pointerup', (e) => {
-    if (from === null) return;
-    const dragged = e.clientX - from; from = null;
-    if (dragged > max() * .85) finish(); else reset();
+  // Both endings are springs that start at the release speed: no fixed duration, damping 1 so the knob does not wobble.
+  const settle = (to, v) => { stop(); stop = spring.to(x, to, v, set); };
+  const reset = (v) => { box.classList.remove('done'); lab.textContent = label; hd.textContent = '→'; settle(0, v); };
+  const finish = (v) => {
+    box.classList.add('done'); lab.textContent = '已确认'; hd.textContent = '✓';
+    settle(max(), v);
+    setTimeout(() => reset(0), 1800);
+  };
+  hd.addEventListener('pointerdown', (e) => {
+    if (box.classList.contains('done')) return;
+    stop();
+    from = e.clientX - x;
+    track = spring.tracker();
+    track.add(x);
+    hd.setPointerCapture(e.pointerId);
   });
-  hd.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(); } });
+  hd.addEventListener('pointermove', (e) => { if (from === null) return; set(e.clientX - from); track.add(x); });
+  const up = () => {
+    if (from === null) return;
+    from = null;
+    // Confirming a payment needs the knob really dragged to 85%; a flick alone never confirms, it only flavours the return.
+    const v = track.speed();
+    if (x > max() * .85) finish(v); else reset(v);
+  };
+  hd.addEventListener('pointerup', up);
+  hd.addEventListener('pointercancel', up);
+  hd.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(0); } });
   U.auto(stage, () => {
-    box.classList.remove('back');
-    U.tween(1000, (p) => set(max() * .92 * U.easeOut(p)), finish);
+    if (from !== null) return;
+    stop();
+    U.tween(1000, (p) => set(max() * .92 * U.easeOut(p)), () => finish(600));
   }, 5200);
 };
 demo.textBtn = (stage, U) => {

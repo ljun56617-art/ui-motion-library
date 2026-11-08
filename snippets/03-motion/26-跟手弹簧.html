@@ -1,0 +1,220 @@
+<!doctype html>
+<!--
+名称：跟手弹簧（Gesture Spring）
+编号：03-motion/26
+什么时候用：拖拽、滑动、甩出去这类跟着手指走的效果，松手后用它代替固定时长的曲线：轻划和猛甩走得不一样远，拉过边界越拉越紧，松手弹回。没有手势的效果照旧用曲线。
+关键参数：刚度 300 · 阻尼比 1 · 质量 1 · 松手速度取最近 100ms · 橡皮筋 0.55
+一句话提示词：拖拽松手用弹簧动画（spring）：刚度 300、阻尼比 1、质量 1，用 JS 每帧计算，不写死时长；用最近 100ms 的指针位置估算松手速度，作为弹簧的初速度；拖过边界加橡皮筋阻力（系数 0.55），越拉越拉不动，松手弹回边界；开了减少动态效果就直接到终点。
+操作提示：拖动或甩方块，拉过两头试试
+移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
+      演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
+-->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>跟手弹簧</title>
+<style>
+/* 颜色变量和基础样式 */
+:root {
+  --bg: #F5ECDC; --surface: #FFFAF1; --stage: #FBF2E2; --ink: #3A2415; --muted: #75593F;
+  --line: #E2D1B6; --accent: #BF540A; --accent-deep: #8F3D05; --accent-ink: #FFF8EE;
+  --gold: #E0A526; --soft: #F5DDB5; --ok: #4C7527; --err: #B0301D; --scrim: rgba(58, 36, 21, .42);
+  --shadow: rgba(92, 52, 20, .2); --on-art: #FFF8EE; --art1: #E98B2A; --art2: #B9480F; --art3: #F3C557;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+  --stage-h: 250px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+    --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+    --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+    --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D140E; --surface: #2A1E15; --stage: #231910; --ink: #F4E6D3; --muted: #C2A98E;
+  --line: #47362A; --accent: #F08C2E; --accent-deep: #A65A12; --accent-ink: #2A1405;
+  --gold: #EBB94A; --soft: #4B3321; --ok: #A0C86E; --err: #F08169; --scrim: rgba(0, 0, 0, .58);
+  --shadow: rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: var(--surface); }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 演示外壳 */
+.sp { max-width: 420px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stage { position: relative; height: var(--stage-h); display: grid; place-items: center; overflow: hidden; isolation: isolate; background: var(--stage); }
+.sp.off .stage *, .sp.off .stage *::before, .sp.off .stage *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-play-state: paused !important; } }
+/* 标本 */
+.btn { border: 0; border-radius: 10px; padding: 10px 20px; background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; transition: transform .15s, box-shadow .15s, background .2s, color .2s; }
+.btn.line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.btn.sm { padding: 5px 13px; font-size: 13px; border-radius: 8px; }
+.a-fol { width: min(88%, 300px); display: grid; gap: 14px; }
+.a-fol-rail { position: relative; height: 64px; border-radius: 16px; background: var(--soft); }
+.a-fol-rail i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--line); }
+.a-fol-rail i:nth-child(1) { left: 32px; }
+.a-fol-rail i:nth-child(2) { left: 50%; }
+.a-fol-rail i:nth-child(3) { left: calc(100% - 32px); }
+.a-fol-k { position: absolute; left: 4px; top: 4px; width: 56px; height: 56px; border: 0; border-radius: 13px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 4px 10px var(--shadow); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; will-change: transform; }
+.a-fol-k:active { cursor: grabbing; }
+.a-fol-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); }
+.a-fol-z { display: flex; gap: 4px; flex: none; }
+</style></head>
+<body><article class="sp" data-name="跟手弹簧" data-en="Gesture Spring" data-demo="follow" data-hint="拖动或甩方块，拉过两头试试" data-params="刚度 300 · 阻尼比 1 · 质量 1 · 松手速度取最近 100ms · 橡皮筋 0.55" data-use="拖拽、滑动、甩出去这类跟着手指走的效果，松手后用它代替固定时长的曲线：轻划和猛甩走得不一样远，拉过边界越拉越紧，松手弹回。没有手势的效果照旧用曲线。" data-prompt="拖拽松手用弹簧动画（spring）：刚度 300、阻尼比 1、质量 1，用 JS 每帧计算，不写死时长；用最近 100ms 的指针位置估算松手速度，作为弹簧的初速度；拖过边界加橡皮筋阻力（系数 0.55），越拉越拉不动，松手弹回边界；开了减少动态效果就直接到终点。"><div class="stage"><div class="a-fol"><div class="a-fol-rail"><i></i><i></i><i></i><button class="a-fol-k" type="button" aria-label="拖动方块，也可以按左右方向键">拖我</button></div><div class="a-fol-bar"><span class="a-fol-v" aria-live="polite">轻划和猛甩，停的位置不一样</span><span class="a-fol-z"><button class="btn sm" type="button" data-z="1" aria-pressed="true">阻尼比 1</button><button class="btn sm line" type="button" data-z=".5" aria-pressed="false">0.5</button></span></div></div></div></article>
+<script>window.demo = {};
+const spring = {
+  // 跟手弹簧：拖拽松手类效果共用的三个小工具，无依赖，整段带走即可。
+  // 用法：按下时 t = spring.tracker()，移动时 t.add(位置)，松手时 v = t.speed()，再 spring.to(当前位置, 终点, v, 画)。
+  //
+  // spring.to(from, to, v, draw, opt, done)：用弹簧把数值从 from 带到 to。
+  //   没有写死的时长：每帧按「刚度 × 距离 − 阻尼 × 速度」算加速度，位置和速度都够小时自己停。
+  //   v          起始速度，单位「每秒多少」，一般填松手速度，这样轻划和猛甩出来的动作不一样；填 0 就是从静止出发
+  //   draw(x, v) 每帧调用一次，拿 x 去改样式
+  //   opt.stiffness 刚度，默认 300。调大：拉得更狠，更快到、更干脆；调小：慢悠悠、发软
+  //   opt.damping   阻尼比，默认 1。等于 1：最快停稳、不来回晃（猛甩时可能冲过终点一次再回来）；
+  //                 小于 1：冲过头再晃回来，越小晃得越多，0.5 大约晃两下，适合俏皮的地方；大于 1：像在糖浆里慢慢挪
+  //   opt.mass      质量，默认 1。调大：更沉，惯性更大，同样一甩冲得更远、停得更慢；调小：更轻、更灵
+  //   opt.rest      停下的门槛，默认 0.1（适合 px）。scale 这类很小的数要调小，比如 0.001
+  //   返回一个函数，调用它可以中途停下（手指再次按住时用）。
+  //   开了系统的「减少动态效果」（prefers-reduced-motion）时直接跳到终点。
+  to(from, to, v, draw, opt = {}, done) {
+    const k = opt.stiffness ?? 300, m = opt.mass ?? 1, rest = opt.rest ?? .1;
+    const c = 2 * (opt.damping ?? 1) * Math.sqrt(k * m);
+    let x = from, raf = 0, stopped = false, last = performance.now();
+    const finish = () => { draw(to, 0); if (done) done(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return () => {}; }
+    const step = (now) => {
+      // Fixed 4 ms sub-steps keep stiff springs stable even when a frame arrives late.
+      for (let dt = Math.min(.064, (now - last) / 1000); dt > 0; dt -= .004) {
+        const h = Math.min(dt, .004);
+        v += (-k * (x - to) - c * v) / m * h;
+        x += v * h;
+      }
+      last = now;
+      if (Math.abs(x - to) < rest && Math.abs(v) < rest * 10) { finish(); return; }
+      draw(x, v);
+      if (!stopped) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  },
+  // spring.rubber(x, min, max, size, c)：橡皮筋。x 在 min 到 max 之间原样返回；拉出边界后越拉越拉不动。
+  //   size  元素在拖动方向上的尺寸（px），拉出去的距离永远到不了它
+  //   c     阻力系数，默认 0.55（iOS 的取值）。调小：边界更硬，几乎拉不动；调大（最多 1）：更松
+  rubber(x, min, max, size, c = .55) {
+    const band = (d) => (1 - 1 / (d * c / size + 1)) * size;
+    return x < min ? min - band(min - x) : x > max ? max + band(x - max) : x;
+  },
+  // spring.tracker()：估算松手速度。add(x) 记下每次指针位置，speed() 用最近 100ms 的位移算出每秒多少 px。
+  //   松手前手指停住超过 80ms，速度算 0，这样「拖过去停一下再松」不会被当成甩。
+  tracker() {
+    let pts = [];
+    return {
+      add(x) {
+        const t = performance.now();
+        pts.push([t, x]);
+        while (pts.length > 2 && t - pts[0][0] > 100) pts.shift();
+      },
+      speed() {
+        const a = pts[0], b = pts[pts.length - 1];
+        pts = [];
+        if (!a || b[0] - a[0] < 1 || performance.now() - b[0] > 80) return 0;
+        return (b[1] - a[1]) / (b[0] - a[0]) * 1000;
+      },
+    };
+  },
+};
+demo.follow = (stage, U) => {
+  const rail = stage.querySelector('.a-fol-rail');
+  const knob = stage.querySelector('.a-fol-k');
+  const out = stage.querySelector('.a-fol-v');
+  const zs = [...stage.querySelectorAll('[data-z]')];
+  const NAMES = ['左', '中', '右'];
+  let x = 0, from = null, track = null, damping = 1, stop = () => {};
+  const max = () => rail.clientWidth - 64;
+  const stops = () => [0, max() / 2, max()];
+  const nearest = (aim) => stops().reduce((best, s, i, all) => (Math.abs(s - aim) < Math.abs(all[best] - aim) ? i : best), 0);
+  // x is where the finger (or the spring) puts the knob; what is drawn goes through the rubber band past the ends.
+  const draw = (v) => { x = v; knob.style.transform = 'translateX(' + spring.rubber(v, 0, max(), knob.offsetWidth).toFixed(1) + 'px)'; };
+  const go = (i, v) => { stop(); stop = spring.to(x, stops()[i], v, draw, { damping }); };
+  knob.addEventListener('pointerdown', (e) => {
+    stop();
+    from = e.clientX - x;
+    track = spring.tracker();
+    track.add(x);
+    knob.setPointerCapture(e.pointerId);
+  });
+  knob.addEventListener('pointermove', (e) => { if (from === null) return; draw(e.clientX - from); track.add(x); });
+  const up = () => {
+    if (from === null) return;
+    from = null;
+    const v = track.speed();
+    // Aim where the throw would carry the knob in about 0.2 s, so a hard flick can skip past the middle stop.
+    const i = nearest(x + v * .2);
+    out.textContent = '松手速度 ' + Math.round(Math.abs(v)) + ' px/s → ' + NAMES[i];
+    go(i, v);
+  };
+  knob.addEventListener('pointerup', up);
+  knob.addEventListener('pointercancel', up);
+  knob.addEventListener('keydown', (e) => {
+    const dir = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    go(Math.max(0, Math.min(2, nearest(x) + dir)), 0);
+  });
+  zs.forEach((b) => b.addEventListener('click', () => {
+    damping = +b.dataset.z;
+    zs.forEach((z) => { z.classList.toggle('line', z !== b); z.setAttribute('aria-pressed', String(z === b)); });
+  }));
+  // Idle demo: throw the knob to the next stop with some speed, until the viewer takes over.
+  U.auto(stage, () => { const i = nearest(x), j = i === 2 ? 0 : i + 1; go(j, (j > i ? 1 : -1) * 900); }, 2400);
+};
+</script>
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFrozen = (stage) => reduced || stage.closest('.sp').classList.contains('off');
+  const U = {
+    loop(stage, fn, ms) { setInterval(() => { if (!isFrozen(stage)) fn(); }, ms); },
+    auto(stage, fn, ms) { U.loop(stage, () => { if (!stage.dataset.touched) fn(); }, ms); },
+    frame(stage, fn) { const step = (t) => { if (!isFrozen(stage)) fn(t); requestAnimationFrame(step); }; requestAnimationFrame(step); },
+    tween(ms, fn, done) {
+      const start = performance.now();
+      const step = (now) => { const p = Math.min(1, (now - start) / ms); fn(p); if (p < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    },
+    easeOut: (p) => 1 - Math.pow(1 - p, 3),
+  };
+  const card = document.querySelector('.sp');
+  const stage = card.querySelector('.stage');
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-open],[data-close]');
+    if (!t) return;
+    if (t.hasAttribute('data-toggle')) stage.classList.toggle('on');
+    else if (t.hasAttribute('data-open')) stage.classList.add('on');
+    else stage.classList.remove('on');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stage.classList.remove('on'); });
+  stage.addEventListener('pointerdown', () => { stage.dataset.touched = '1'; }, true);
+  stage.addEventListener('focusin', () => { stage.dataset.touched = '1'; }, true);
+  const fn = window.demo[card.dataset.demo];
+  if (card.dataset.demo && !fn) console.error('missing demo: ' + card.dataset.demo);
+  if (fn) fn(stage, U);
+  let seen = false;
+  new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      card.classList.toggle('off', !en.isIntersecting);
+      if (!en.isIntersecting || seen) return;
+      seen = true;
+      setTimeout(() => {
+        if (stage.dataset.touched) return;
+        if (card.hasAttribute('data-auto')) stage.classList.add('on');
+        stage.dispatchEvent(new Event('inview'));
+      }, 450);
+    });
+  }, { threshold: 0.15 }).observe(card);
+})();
+</script>
+</body></html>

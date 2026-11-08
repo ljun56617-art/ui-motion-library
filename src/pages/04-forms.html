@@ -122,10 +122,8 @@
 .f-rg2 label { font-size: 13px; color: var(--muted); }
 .f-dual { position: relative; height: 24px; }
 .f-dual .tr { position: absolute; left: 0; right: 0; top: 8px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--line) var(--a), var(--accent) var(--a), var(--accent) var(--b), var(--line) var(--b)); }
-.f-dual input { position: absolute; inset: 0; width: 100%; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
-.f-dual input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 2px 6px var(--shadow); cursor: pointer; transition: transform .15s; }
-.f-dual input::-moz-range-thumb { pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 2px 6px var(--shadow); cursor: pointer; }
-.f-dual input:active::-webkit-slider-thumb { transform: scale(1.2); }
+.f-dual .hd { position: absolute; left: -12px; top: 0; width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); box-shadow: 0 2px 6px var(--shadow); cursor: grab; touch-action: none; transition: scale .15s; }
+.f-dual .hd.held { scale: 1.2; cursor: grabbing; }
 .f-nums { display: grid; grid-template-columns: 1fr auto 1fr; gap: 7px; align-items: center; color: var(--muted); }
 .f-nums input { width: 100%; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); font: 14px var(--mono); }
 
@@ -188,8 +186,8 @@
 <article class="sp" data-name="日期选择器" data-en="Date Picker" data-demo="calendar" data-hint="点两个日期选范围" data-use="订酒店这种要选起止日期的场景最合适。生日就别用了，直接输入比翻月快得多。" data-prompt="做一个日期范围选择器（Date Picker）：点第一个日期为入住、第二个为离店，中间日期浅色连成一段，翻月时日历左右滑动。注意：出生日期不要用它，改成直接输入年月日。">
   <div class="stage"><div class="f-cal" style="padding-block:5px"><div class="f-cal-h"><button type="button" aria-label="上个月" data-m="-1">‹</button><span class="t"></span><button type="button" aria-label="下个月" data-m="1">›</button></div><div class="f-cal-g"></div><p class="f-cal-note">选择入住日期</p></div></div>
 </article>
-<article class="sp" data-name="滑块" data-en="Slider" data-demo="range" data-hint="拖两端，或直接改数字" data-use="拖两个把手定一个大致范围，比如价格。要准确数字就旁边再配输入框。" data-prompt="做一个价格区间滑块（Slider）：两个把手，中间段橙色，按住把手放大 1.2 倍；下方两个数字输入框和把手双向同步，方便输入精确数值。">
-  <div class="stage"><div class="f-rg2"><label for="f-lo">价格区间（元）</label><div class="f-dual" style="--a:20%;--b:60%"><div class="tr"></div><input id="f-lo" type="range" min="0" max="1000" step="10" value="200" aria-label="最低价"><input id="f-hi" type="range" min="0" max="1000" step="10" value="600" aria-label="最高价"></div><div class="f-nums"><input id="f-lon" type="number" min="0" max="1000" value="200" aria-label="最低价数字"><span>至</span><input id="f-hin" type="number" min="0" max="1000" value="600" aria-label="最高价数字"></div></div></div>
+<article class="sp" data-name="滑块" data-en="Slider" data-demo="range" data-hint="拖把手，拉过头试试；也能直接改数字" data-params="两端橡皮筋 · 弹簧弹回 · 范围内松手即停" data-use="拖两个把手定一个大致范围，比如价格。要准确数字就旁边再配输入框。" data-prompt="做一个价格区间滑块（Slider）：两个把手，中间段橙色，按住把手放大 1.2 倍；下方两个数字输入框和把手双向同步，方便输入精确数值。把手拉过两头或顶到另一个把手时用橡皮筋阻力（系数 0.55），松手用弹簧动画（刚度 300、阻尼比 1）带着松手速度弹回边界；在范围内松手就停在原地，不要惯性滑走。把手支持方向键。">
+  <div class="stage"><div class="f-rg2"><label for="f-lon">价格区间（元）</label><div class="f-dual" style="--a:20%;--b:60%"><div class="tr"></div><span class="hd" id="f-lo" role="slider" tabindex="0" aria-label="最低价" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="200"></span><span class="hd" id="f-hi" role="slider" tabindex="0" aria-label="最高价" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="600"></span></div><div class="f-nums"><input id="f-lon" type="number" min="0" max="1000" value="200" aria-label="最低价数字"><span>至</span><input id="f-hin" type="number" min="0" max="1000" value="600" aria-label="最高价数字"></div></div></div>
 </article>
 <article class="sp" data-name="评分" data-en="Rating" data-demo="rating" data-hint="点星星" data-use="打分、满意度。悬停预览，点击时星星依次弹一下，下面的文字跟着变。" data-prompt="做一个五星评分：鼠标悬停时预览到当前星，点击确认后从第一颗开始依次弹跳，每颗延迟 45ms，下方显示对应文字评价。">
   <div class="stage"><div class="f-rate"><div class="f-stars" role="group" aria-label="评分"></div><div class="f-small">点一下打分</div></div></div>
@@ -449,22 +447,73 @@ demo.calendar = (stage) => {
 };
 demo.range = (stage, U) => {
   const dual = stage.querySelector('.f-dual');
-  const lo = stage.querySelector('#f-lo'), hi = stage.querySelector('#f-hi');
-  const loN = stage.querySelector('#f-lon'), hiN = stage.querySelector('#f-hin');
-  const MAX = 1000, GAP = 50;
-  const paint = () => {
-    dual.style.setProperty('--a', (lo.value / MAX * 100) + '%');
-    dual.style.setProperty('--b', (hi.value / MAX * 100) + '%');
-    loN.value = lo.value; hiN.value = hi.value;
+  const hds = { lo: stage.querySelector('#f-lo'), hi: stage.querySelector('#f-hi') };
+  const nums = { lo: stage.querySelector('#f-lon'), hi: stage.querySelector('#f-hin') };
+  const MAX = 1000, GAP = 50, STEP = 10;
+  const val = { lo: 200, hi: 600 };
+  // raw: where the finger or the spring puts each handle, in px. It may run past the handle's limits; val never does.
+  const raw = { lo: 0, hi: 0 };
+  const stops = { lo: () => {}, hi: () => {} };
+  const W = () => dual.clientWidth;
+  const toPx = (v) => v / MAX * W();
+  // Keep the two handles from crossing: lo runs from 0 to hi - GAP, hi from lo + GAP to MAX.
+  const limits = (k) => (k === 'lo' ? [0, val.hi - GAP] : [val.lo + GAP, MAX]);
+  const draw = (k) => {
+    const [a, b] = limits(k);
+    const p = spring.rubber(raw[k], toPx(a), toPx(b), 40);
+    hds[k].style.transform = 'translateX(' + p.toFixed(1) + 'px)';
+    dual.style.setProperty(k === 'lo' ? '--a' : '--b', (p / W() * 100).toFixed(2) + '%');
   };
-  // Keep the two handles from crossing, whichever one moved.
-  lo.addEventListener('input', () => { lo.value = Math.min(+lo.value, +hi.value - GAP); paint(); });
-  hi.addEventListener('input', () => { hi.value = Math.max(+hi.value, +lo.value + GAP); paint(); });
-  loN.addEventListener('change', () => { lo.value = Math.min(+loN.value, +hi.value - GAP); paint(); });
-  hiN.addEventListener('change', () => { hi.value = Math.max(+hiN.value, +lo.value + GAP); paint(); });
-  paint();
+  const setVal = (k, v) => {
+    const [a, b] = limits(k);
+    val[k] = Math.max(a, Math.min(b, Math.round(v / STEP) * STEP));
+    nums[k].value = val[k];
+    hds[k].setAttribute('aria-valuenow', val[k]);
+  };
+  const place = (k, v) => { stops[k](); setVal(k, v); raw[k] = toPx(val[k]); draw(k); };
+  Object.keys(hds).forEach((k) => {
+    const hd = hds[k], other = hds[k === 'lo' ? 'hi' : 'lo'];
+    let from = null, track = null;
+    hd.addEventListener('pointerdown', (e) => {
+      stops[k]();
+      from = e.clientX - raw[k];
+      track = spring.tracker();
+      track.add(raw[k]);
+      hd.setPointerCapture(e.pointerId);
+      hd.classList.add('held');
+      hd.style.zIndex = 2; other.style.zIndex = 1;
+    });
+    hd.addEventListener('pointermove', (e) => {
+      if (from === null) return;
+      raw[k] = e.clientX - from;
+      setVal(k, raw[k] / W() * MAX);
+      draw(k);
+      track.add(raw[k]);
+    });
+    const up = () => {
+      if (from === null) return;
+      from = null;
+      hd.classList.remove('held');
+      // A slider is a precise control: inside its range the value stays where the finger let go, with no fling.
+      // Only a handle pulled past its limit springs back, carrying the release speed.
+      const [a, b] = limits(k);
+      const over = raw[k] < toPx(a) || raw[k] > toPx(b);
+      stops[k] = spring.to(raw[k], toPx(val[k]), over ? track.speed() : 0, (x) => { raw[k] = x; draw(k); });
+    };
+    hd.addEventListener('pointerup', up);
+    hd.addEventListener('pointercancel', up);
+    hd.addEventListener('keydown', (e) => {
+      const dir = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      place(k, val[k] + dir * STEP);
+    });
+    nums[k].addEventListener('change', () => place(k, +nums[k].value));
+  });
+  place('lo', val.lo); place('hi', val.hi);
+  addEventListener('resize', () => { place('lo', val.lo); place('hi', val.hi); });
   stage.addEventListener('inview', () => {
-    U.tween(1200, (p) => { lo.value = 200 + Math.sin(p * Math.PI) * 180; hi.value = 600 + Math.sin(p * Math.PI) * 220; paint(); });
+    U.tween(1200, (p) => { place('lo', 200 + Math.sin(p * Math.PI) * 180); place('hi', 600 + Math.sin(p * Math.PI) * 220); });
   });
 };
 demo.cascader = (stage) => {

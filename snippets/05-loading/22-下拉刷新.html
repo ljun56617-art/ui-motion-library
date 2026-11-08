@@ -3,8 +3,9 @@
 名称：下拉刷新（Pull to Refresh）
 编号：05-loading/22
 什么时候用：手指往下拖，松开后顶上转一圈，新内容就到了。
-一句话提示词：做下拉刷新（Pull to Refresh）：列表跟手下拉并有阻尼，超过 56px 松手后顶部转圈，新内容从上方滑入，然后列表回弹；不够距离就直接回弹。
-操作提示：按住列表往下拉
+关键参数：橡皮筋 0.55 · 弹簧阻尼比 1 · 带松手速度
+一句话提示词：做下拉刷新（Pull to Refresh）：列表跟手下拉，用橡皮筋阻力（系数 0.55，越拉越拉不动）；超过 56px 松手后，用弹簧动画（刚度 300、阻尼比 1）带着松手速度停到 56px 处，顶部转圈，新内容从上方滑入，再用弹簧回到顶部；不够距离就带着松手速度弹回。弹簧按帧计算，不写死时长。
+操作提示：按住列表往下拉，越拉越沉
 移植：只搬「标本」部分的 CSS、.stage 内的结构和 demo 函数；颜色全是 CSS 变量，映射到目标项目的颜色；
       演示里的定时循环和假数据要换成真实状态；.stage、.sp、U.* 只是演示外壳。
 -->
@@ -52,27 +53,90 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .l-ptr-ind i { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--soft); border-top-color: var(--accent); }
 .l-ptr.busy .l-ptr-ind i { animation: l-rot .8s linear infinite; }
 .l-ptr-list { position: absolute; inset: 0; background: var(--stage); padding: 11px 15px; display: grid; gap: 7px; align-content: start; box-shadow: 0 -2px 6px var(--shadow); }
-.l-ptr.back .l-ptr-list { transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
 .l-it { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 9px; font-size: 13.5px; background: var(--surface); }
 .l-it i { flex: none; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(145deg, var(--art3), var(--art1)); }
 .l-it.new { animation: l-new .4s cubic-bezier(.2, 1.2, .4, 1); box-shadow: inset 0 0 0 1.5px var(--accent); }
 @keyframes l-rot { to { transform: rotate(360deg); } }
 @keyframes l-new { from { opacity: 0; transform: translateY(-14px) scale(.95); } }
 </style></head>
-<body><article class="sp" data-name="下拉刷新" data-en="Pull to Refresh" data-demo="pull" data-hint="按住列表往下拉" data-use="手指往下拖，松开后顶上转一圈，新内容就到了。" data-prompt="做下拉刷新（Pull to Refresh）：列表跟手下拉并有阻尼，超过 56px 松手后顶部转圈，新内容从上方滑入，然后列表回弹；不够距离就直接回弹。"><div class="stage"><div class="l-ptr"><div class="l-ptr-ind"><i></i></div><div class="l-ptr-list"><div class="l-it"><i></i>第 2 讲作业已批改</div><div class="l-it"><i></i>小组讨论：怎么写提示词</div><div class="l-it"><i></i>本周直播回放</div><div class="l-it"><i></i>学习群公告</div></div></div></div></article>
+<body><article class="sp" data-name="下拉刷新" data-en="Pull to Refresh" data-demo="pull" data-hint="按住列表往下拉，越拉越沉" data-params="橡皮筋 0.55 · 弹簧阻尼比 1 · 带松手速度" data-use="手指往下拖，松开后顶上转一圈，新内容就到了。" data-prompt="做下拉刷新（Pull to Refresh）：列表跟手下拉，用橡皮筋阻力（系数 0.55，越拉越拉不动）；超过 56px 松手后，用弹簧动画（刚度 300、阻尼比 1）带着松手速度停到 56px 处，顶部转圈，新内容从上方滑入，再用弹簧回到顶部；不够距离就带着松手速度弹回。弹簧按帧计算，不写死时长。"><div class="stage"><div class="l-ptr"><div class="l-ptr-ind"><i></i></div><div class="l-ptr-list"><div class="l-it"><i></i>第 2 讲作业已批改</div><div class="l-it"><i></i>小组讨论：怎么写提示词</div><div class="l-it"><i></i>本周直播回放</div><div class="l-it"><i></i>学习群公告</div></div></div></div></article>
 <script>window.demo = {};
+const spring = {
+  // 跟手弹簧：拖拽松手类效果共用的三个小工具，无依赖，整段带走即可。
+  // 用法：按下时 t = spring.tracker()，移动时 t.add(位置)，松手时 v = t.speed()，再 spring.to(当前位置, 终点, v, 画)。
+  //
+  // spring.to(from, to, v, draw, opt, done)：用弹簧把数值从 from 带到 to。
+  //   没有写死的时长：每帧按「刚度 × 距离 − 阻尼 × 速度」算加速度，位置和速度都够小时自己停。
+  //   v          起始速度，单位「每秒多少」，一般填松手速度，这样轻划和猛甩出来的动作不一样；填 0 就是从静止出发
+  //   draw(x, v) 每帧调用一次，拿 x 去改样式
+  //   opt.stiffness 刚度，默认 300。调大：拉得更狠，更快到、更干脆；调小：慢悠悠、发软
+  //   opt.damping   阻尼比，默认 1。等于 1：最快停稳、不来回晃（猛甩时可能冲过终点一次再回来）；
+  //                 小于 1：冲过头再晃回来，越小晃得越多，0.5 大约晃两下，适合俏皮的地方；大于 1：像在糖浆里慢慢挪
+  //   opt.mass      质量，默认 1。调大：更沉，惯性更大，同样一甩冲得更远、停得更慢；调小：更轻、更灵
+  //   opt.rest      停下的门槛，默认 0.1（适合 px）。scale 这类很小的数要调小，比如 0.001
+  //   返回一个函数，调用它可以中途停下（手指再次按住时用）。
+  //   开了系统的「减少动态效果」（prefers-reduced-motion）时直接跳到终点。
+  to(from, to, v, draw, opt = {}, done) {
+    const k = opt.stiffness ?? 300, m = opt.mass ?? 1, rest = opt.rest ?? .1;
+    const c = 2 * (opt.damping ?? 1) * Math.sqrt(k * m);
+    let x = from, raf = 0, stopped = false, last = performance.now();
+    const finish = () => { draw(to, 0); if (done) done(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return () => {}; }
+    const step = (now) => {
+      // Fixed 4 ms sub-steps keep stiff springs stable even when a frame arrives late.
+      for (let dt = Math.min(.064, (now - last) / 1000); dt > 0; dt -= .004) {
+        const h = Math.min(dt, .004);
+        v += (-k * (x - to) - c * v) / m * h;
+        x += v * h;
+      }
+      last = now;
+      if (Math.abs(x - to) < rest && Math.abs(v) < rest * 10) { finish(); return; }
+      draw(x, v);
+      if (!stopped) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  },
+  // spring.rubber(x, min, max, size, c)：橡皮筋。x 在 min 到 max 之间原样返回；拉出边界后越拉越拉不动。
+  //   size  元素在拖动方向上的尺寸（px），拉出去的距离永远到不了它
+  //   c     阻力系数，默认 0.55（iOS 的取值）。调小：边界更硬，几乎拉不动；调大（最多 1）：更松
+  rubber(x, min, max, size, c = .55) {
+    const band = (d) => (1 - 1 / (d * c / size + 1)) * size;
+    return x < min ? min - band(min - x) : x > max ? max + band(x - max) : x;
+  },
+  // spring.tracker()：估算松手速度。add(x) 记下每次指针位置，speed() 用最近 100ms 的位移算出每秒多少 px。
+  //   松手前手指停住超过 80ms，速度算 0，这样「拖过去停一下再松」不会被当成甩。
+  tracker() {
+    let pts = [];
+    return {
+      add(x) {
+        const t = performance.now();
+        pts.push([t, x]);
+        while (pts.length > 2 && t - pts[0][0] > 100) pts.shift();
+      },
+      speed() {
+        const a = pts[0], b = pts[pts.length - 1];
+        pts = [];
+        if (!a || b[0] - a[0] < 1 || performance.now() - b[0] > 80) return 0;
+        return (b[1] - a[1]) / (b[0] - a[0]) * 1000;
+      },
+    };
+  },
+};
 demo.pull = (stage, U) => {
   const box = stage.querySelector('.l-ptr');
   const list = box.querySelector('.l-ptr-list');
   const NEWS = ['刚刚：老师发了新课件', '刚刚：林小满交了作业', '刚刚：直播改到周五'];
   const TRIGGER = 56;
-  let start = null, y = 0, busy = false, n = 0;
-  const move = (v) => { y = v; list.style.transform = 'translateY(' + v + 'px)'; box.querySelector('.l-ptr-ind i').style.transform = 'rotate(' + v * 5 + 'deg)'; };
-  const refresh = () => {
+  const ring = box.querySelector('.l-ptr-ind i');
+  let start = null, base = 0, y = 0, busy = false, n = 0, track = null, stop = () => {};
+  const move = (v) => { y = v; list.style.transform = 'translateY(' + v.toFixed(1) + 'px)'; ring.style.transform = 'rotate(' + v * 5 + 'deg)'; };
+  // After release a spring takes the list from wherever it is, carrying the release speed; damping 1 so it does not bob.
+  const settle = (to, v, done) => { stop(); stop = spring.to(y, to, v, move, {}, done); };
+  const refresh = (v) => {
     busy = true;
-    box.classList.add('back', 'busy');
-    box.querySelector('.l-ptr-ind i').style.transform = '';
-    move(TRIGGER);
+    box.classList.add('busy');
+    settle(TRIGGER, v);
     setTimeout(() => {
       const item = document.createElement('div');
       item.className = 'l-it new';
@@ -81,23 +145,37 @@ demo.pull = (stage, U) => {
       list.prepend(item);
       while (list.children.length > 4) list.lastChild.remove();
       box.classList.remove('busy');
-      move(0);
-      setTimeout(() => { busy = false; }, 320);
+      settle(0, 0, () => { busy = false; });
     }, 1100);
   };
-  box.addEventListener('pointerdown', (e) => { if (busy) return; start = e.clientY; box.setPointerCapture(e.pointerId); box.classList.remove('back'); });
-  box.addEventListener('pointermove', (e) => { if (start !== null) move(Math.max(0, (e.clientY - start) * .55)); });
+  box.addEventListener('pointerdown', (e) => {
+    if (busy) return;
+    stop();
+    // Undo the rubber band on the current offset, so grabbing the list mid-return picks it up where it is.
+    base = y / .55 / (1 - y / box.clientHeight);
+    start = e.clientY;
+    track = spring.tracker();
+    track.add(y);
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (start === null) return;
+    // Rubber band: the further the finger pulls, the less the list follows.
+    move(spring.rubber(Math.max(0, base + e.clientY - start), 0, 0, box.clientHeight));
+    track.add(y);
+  });
   const end = () => {
     if (start === null) return;
     start = null;
-    if (y >= TRIGGER) refresh(); else { box.classList.add('back'); move(0); }
+    const v = track.speed();
+    if (y >= TRIGGER) refresh(v); else settle(0, v);
   };
   box.addEventListener('pointerup', end);
   box.addEventListener('pointercancel', end);
   U.auto(stage, () => {
-    if (busy) return;
-    box.classList.remove('back');
-    U.tween(800, (p) => move(70 * U.easeOut(p)), refresh);
+    if (busy || start !== null) return;
+    stop();
+    U.tween(800, (p) => move(70 * U.easeOut(p)), () => refresh(0));
   }, 4600);
 };
 </script>

@@ -123,12 +123,18 @@
 .a-mq-t span { flex: none; margin-right: 10px; padding: 10px 18px; font-weight: 700; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
 @keyframes a-mq { to { transform: translateX(-50%); } }
 
-.a-spring { animation: a-spring 2.4s infinite; }
-@keyframes a-spring {
-  0% { transform: scale(.4); opacity: 0; } 8% { opacity: 1; }
-  18% { transform: scale(1.16); } 30% { transform: scale(.93); } 42% { transform: scale(1.03); } 54%, 88% { transform: none; opacity: 1; }
-  100% { transform: scale(.4); opacity: 0; }
-}
+.a-spring { border: 0; font: inherit; font-weight: 700; cursor: pointer; will-change: transform; }
+
+.a-fol { width: min(88%, 300px); display: grid; gap: 14px; }
+.a-fol-rail { position: relative; height: 64px; border-radius: 16px; background: var(--soft); }
+.a-fol-rail i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--line); }
+.a-fol-rail i:nth-child(1) { left: 32px; }
+.a-fol-rail i:nth-child(2) { left: 50%; }
+.a-fol-rail i:nth-child(3) { left: calc(100% - 32px); }
+.a-fol-k { position: absolute; left: 4px; top: 4px; width: 56px; height: 56px; border: 0; border-radius: 13px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 4px 10px var(--shadow); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; will-change: transform; }
+.a-fol-k:active { cursor: grabbing; }
+.a-fol-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); }
+.a-fol-z { display: flex; gap: 4px; flex: none; }
 .a-lift { width: min(76%, 230px); padding: 16px; border-radius: 13px; background: var(--surface); box-shadow: 0 3px 9px var(--shadow); transition: transform .2s, box-shadow .2s; }
 .a-lift:hover, .a-lift.show { transform: translateY(-7px); box-shadow: 0 16px 28px var(--shadow); }
 .a-lift b { display: block; }
@@ -142,7 +148,7 @@
 .a-ease div:nth-child(3) i { animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
 @keyframes a-ease { from { left: 0; } to { left: calc(100% - 22px); } }
 </style>
-<div class="advice"><b>时长参考</b><ul><li>悬停、按下这类小动作：<strong>0.1～0.2 秒</strong></li><li>弹窗、抽屉：<strong>0.2～0.3 秒</strong></li><li>优先动<strong>位置、大小、透明度</strong>，不容易卡顿</li></ul></div>
+<div class="advice"><b>时长参考</b><ul><li>悬停、按下这类小动作：<strong>0.1～0.2 秒</strong></li><li>弹窗、抽屉：<strong>0.2～0.3 秒</strong></li><li>优先动<strong>位置、大小、透明度</strong>，不容易卡顿</li><li>拖拽、松手类：<strong>不定时长</strong>，用弹簧带上松手速度，见最后一条「跟手弹簧」</li></ul></div>
 <h2 class="group">元素出现和离开</h2>
 <article class="sp" data-name="淡入淡出" data-en="Fade" data-params="200–300ms · ease-in-out · opacity" data-use="最省事也最不会出错的过渡，内容出现、消失都能用。" data-prompt="让这个元素淡入淡出：透明度 0 到 1，时长 300ms，缓动 ease-in-out，只改透明度不改位置。">
   <div class="stage"><div class="o a-fade">Fade</div></div>
@@ -159,8 +165,8 @@
 <article class="sp" data-name="错峰" data-en="Stagger" data-params="每项延迟 90ms · ease-out · translateY" data-use="列表不是一起出现，而是一项接一项，视线会顺着往下走。" data-prompt="让列表项错峰入场（Stagger）：每一项从下方 16px 淡入，后一项比前一项晚 90ms 开始。">
   <div class="stage"><div class="a-list"><div style="--i:0"><i></i>打开 Claude Code</div><div style="--i:1"><i></i>说清要做什么</div><div style="--i:2"><i></i>看它列的计划</div><div style="--i:3"><i></i>运行并验收</div><div style="--i:4"><i></i>提交保存</div></div></div>
 </article>
-<article class="sp" data-name="弹性" data-en="Spring" data-params="过冲 1.16 → 回弹 0.93 → 稳定" data-use="先过头一点再退回来，带果冻的质感，适合轻松的界面。" data-prompt="做弹性动效（Spring）：元素放大时冲到 1.16 倍，回弹到 0.93，再稳定到 1，像果冻一样，总时长约 300ms。">
-  <div class="stage"><div class="o a-spring">Spring</div></div>
+<article class="sp" data-name="弹性" data-en="Spring" data-demo="pop" data-hint="点方块再弹一次" data-params="JS 弹簧 · 刚度 260 · 阻尼比 0.4 · 不写死时长" data-use="先冲过头再晃回来，带果冻的质感，适合轻松的界面。阻尼比小于 1 才会晃，越小晃得越多；等于 1 就稳稳停住。" data-prompt="做弹性动效（Spring）：用 JS 每帧计算的弹簧动画，刚度 260、阻尼比 0.4，元素从 0.4 倍弹到 1 倍，冲过头到 1.15 倍左右再晃两下停住；时长由弹簧自己算，不要用写死的关键帧。">
+  <div class="stage"><button class="o a-spring" type="button">Spring</button></div>
 </article>
 <article class="sp" data-name="缓动" data-en="Easing" data-params="linear / ease-in / ease-out" data-use="决定动作快慢怎么变化，先快后慢最接近真实物体。这里三条线同时起跑，可以直接对比。" data-prompt="这个动画的缓动（Easing）用 ease-out：先快后慢，不要用 linear，否则动作会显得僵硬。">
   <div class="stage"><div class="a-ease"><div>linear 匀速<span class="a-rail"><i></i></span></div><div>ease-in 加速<span class="a-rail"><i></i></span></div><div>ease-out 减速<span class="a-rail"><i></i></span></div></div></div>
@@ -222,6 +228,10 @@
 </article>
 <article class="sp" data-name="线条描绘" data-en="SVG Line Draw" data-params="stroke-dashoffset · pathLength=1 · 2.2s" data-use="Logo 开场、流程图讲解。线条像被一笔笔画出来。" data-prompt="让这个 SVG 线条像手绘一样画出来：设 pathLength=1，stroke-dasharray 为 1，把 stroke-dashoffset 从 1 动画到 0，2.2 秒。">
   <div class="stage"><svg class="a-draw" viewBox="0 0 260 150" aria-hidden="true"><path pathLength="1" d="M10 130 L70 60 L108 100 L156 34 L250 130 Z"/><circle class="b2" pathLength="1" cx="208" cy="42" r="22"/><path class="b2" pathLength="1" d="M26 142 C70 128 110 150 150 138 S220 130 246 144"/></svg></div>
+</article>
+<h2 class="group">跟着手指动</h2>
+<article class="sp" data-name="跟手弹簧" data-en="Gesture Spring" data-demo="follow" data-hint="拖动或甩方块，拉过两头试试" data-params="刚度 300 · 阻尼比 1 · 质量 1 · 松手速度取最近 100ms · 橡皮筋 0.55" data-use="拖拽、滑动、甩出去这类跟着手指走的效果，松手后用它代替固定时长的曲线：轻划和猛甩走得不一样远，拉过边界越拉越紧，松手弹回。没有手势的效果照旧用曲线。" data-prompt="拖拽松手用弹簧动画（spring）：刚度 300、阻尼比 1、质量 1，用 JS 每帧计算，不写死时长；用最近 100ms 的指针位置估算松手速度，作为弹簧的初速度；拖过边界加橡皮筋阻力（系数 0.55），越拉越拉不动，松手弹回边界；开了减少动态效果就直接到终点。">
+  <div class="stage"><div class="a-fol"><div class="a-fol-rail"><i></i><i></i><i></i><button class="a-fol-k" type="button" aria-label="拖动方块，也可以按左右方向键">拖我</button></div><div class="a-fol-bar"><span class="a-fol-v" aria-live="polite">轻划和猛甩，停的位置不一样</span><span class="a-fol-z"><button class="btn sm" type="button" data-z="1" aria-pressed="true">阻尼比 1</button><button class="btn sm line" type="button" data-z=".5" aria-pressed="false">0.5</button></span></div></div></div>
 </article>
 <script>
 demo.type = (stage, U) => {
@@ -373,5 +383,63 @@ demo.lift = (stage, U) => {
   const card = stage.querySelector('.a-lift');
   U.auto(stage, () => card.classList.toggle('show'), 1600);
   stage.addEventListener('pointerenter', () => { stage.dataset.touched = '1'; card.classList.remove('show'); });
+};
+demo.pop = (stage, U) => {
+  const el = stage.querySelector('.a-spring');
+  let stop = () => {};
+  const draw = (s) => {
+    el.style.transform = 'scale(' + s.toFixed(3) + ')';
+    el.style.opacity = Math.min(1, (s - .4) / .3).toFixed(2);
+  };
+  // Damping ratio below 1: it shoots past 1 to about 1.15, swings back under, and settles on its own clock.
+  const pop = () => { stop(); stop = spring.to(.4, 1, 0, draw, { stiffness: 260, damping: .4, rest: .001 }); };
+  el.addEventListener('click', pop);
+  stage.addEventListener('inview', pop);
+  U.auto(stage, pop, 2600);
+};
+demo.follow = (stage, U) => {
+  const rail = stage.querySelector('.a-fol-rail');
+  const knob = stage.querySelector('.a-fol-k');
+  const out = stage.querySelector('.a-fol-v');
+  const zs = [...stage.querySelectorAll('[data-z]')];
+  const NAMES = ['左', '中', '右'];
+  let x = 0, from = null, track = null, damping = 1, stop = () => {};
+  const max = () => rail.clientWidth - 64;
+  const stops = () => [0, max() / 2, max()];
+  const nearest = (aim) => stops().reduce((best, s, i, all) => (Math.abs(s - aim) < Math.abs(all[best] - aim) ? i : best), 0);
+  // x is where the finger (or the spring) puts the knob; what is drawn goes through the rubber band past the ends.
+  const draw = (v) => { x = v; knob.style.transform = 'translateX(' + spring.rubber(v, 0, max(), knob.offsetWidth).toFixed(1) + 'px)'; };
+  const go = (i, v) => { stop(); stop = spring.to(x, stops()[i], v, draw, { damping }); };
+  knob.addEventListener('pointerdown', (e) => {
+    stop();
+    from = e.clientX - x;
+    track = spring.tracker();
+    track.add(x);
+    knob.setPointerCapture(e.pointerId);
+  });
+  knob.addEventListener('pointermove', (e) => { if (from === null) return; draw(e.clientX - from); track.add(x); });
+  const up = () => {
+    if (from === null) return;
+    from = null;
+    const v = track.speed();
+    // Aim where the throw would carry the knob in about 0.2 s, so a hard flick can skip past the middle stop.
+    const i = nearest(x + v * .2);
+    out.textContent = '松手速度 ' + Math.round(Math.abs(v)) + ' px/s → ' + NAMES[i];
+    go(i, v);
+  };
+  knob.addEventListener('pointerup', up);
+  knob.addEventListener('pointercancel', up);
+  knob.addEventListener('keydown', (e) => {
+    const dir = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    go(Math.max(0, Math.min(2, nearest(x) + dir)), 0);
+  });
+  zs.forEach((b) => b.addEventListener('click', () => {
+    damping = +b.dataset.z;
+    zs.forEach((z) => { z.classList.toggle('line', z !== b); z.setAttribute('aria-pressed', String(z === b)); });
+  }));
+  // Idle demo: throw the knob to the next stop with some speed, until the viewer takes over.
+  U.auto(stage, () => { const i = nearest(x), j = i === 2 ? 0 : i + 1; go(j, (j > i ? 1 : -1) * 900); }, 2400);
 };
 </script>

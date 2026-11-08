@@ -68,7 +68,6 @@
 .l-ptr-ind i { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--soft); border-top-color: var(--accent); }
 .l-ptr.busy .l-ptr-ind i { animation: l-rot .8s linear infinite; }
 .l-ptr-list { position: absolute; inset: 0; background: var(--stage); padding: 11px 15px; display: grid; gap: 7px; align-content: start; box-shadow: 0 -2px 6px var(--shadow); }
-.l-ptr.back .l-ptr-list { transition: transform .3s cubic-bezier(.2, .9, .3, 1); }
 .l-it { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 9px; font-size: 13.5px; background: var(--surface); }
 .l-it i { flex: none; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(145deg, var(--art3), var(--art1)); }
 .l-it.new { animation: l-new .4s cubic-bezier(.2, 1.2, .4, 1); box-shadow: inset 0 0 0 1.5px var(--accent); }
@@ -262,7 +261,7 @@
   <div class="stage"><div class="l-logo"><svg viewBox="0 0 80 80"><path pathLength="1" d="M40 6 L51 29 L75 33 L58 51 L62 75 L40 64 L18 75 L22 51 L5 33 L29 29 Z"/></svg><b>你的产品</b></div></div>
 </article>
 <h2 class="group">列表更新</h2>
-<article class="sp" data-name="下拉刷新" data-en="Pull to Refresh" data-demo="pull" data-hint="按住列表往下拉" data-use="手指往下拖，松开后顶上转一圈，新内容就到了。" data-prompt="做下拉刷新（Pull to Refresh）：列表跟手下拉并有阻尼，超过 56px 松手后顶部转圈，新内容从上方滑入，然后列表回弹；不够距离就直接回弹。">
+<article class="sp" data-name="下拉刷新" data-en="Pull to Refresh" data-demo="pull" data-hint="按住列表往下拉，越拉越沉" data-params="橡皮筋 0.55 · 弹簧阻尼比 1 · 带松手速度" data-use="手指往下拖，松开后顶上转一圈，新内容就到了。" data-prompt="做下拉刷新（Pull to Refresh）：列表跟手下拉，用橡皮筋阻力（系数 0.55，越拉越拉不动）；超过 56px 松手后，用弹簧动画（刚度 300、阻尼比 1）带着松手速度停到 56px 处，顶部转圈，新内容从上方滑入，再用弹簧回到顶部；不够距离就带着松手速度弹回。弹簧按帧计算，不写死时长。">
   <div class="stage"><div class="l-ptr"><div class="l-ptr-ind"><i></i></div><div class="l-ptr-list"><div class="l-it"><i></i>第 2 讲作业已批改</div><div class="l-it"><i></i>小组讨论：怎么写提示词</div><div class="l-it"><i></i>本周直播回放</div><div class="l-it"><i></i>学习群公告</div></div></div></div>
 </article>
 <article class="sp" data-name="无限滚动" data-en="Infinite Scroll" data-demo="infinite" data-hint="滚动这个框" data-use="信息流。滑到底自动接着加载，用户不用点「下一页」。" data-prompt="做无限滚动：列表滚到距离底部 80px 时显示小转圈，加载完下一批后追加到列表末尾，加载中不重复触发。">
@@ -327,13 +326,15 @@ demo.pull = (stage, U) => {
   const list = box.querySelector('.l-ptr-list');
   const NEWS = ['刚刚：老师发了新课件', '刚刚：林小满交了作业', '刚刚：直播改到周五'];
   const TRIGGER = 56;
-  let start = null, y = 0, busy = false, n = 0;
-  const move = (v) => { y = v; list.style.transform = 'translateY(' + v + 'px)'; box.querySelector('.l-ptr-ind i').style.transform = 'rotate(' + v * 5 + 'deg)'; };
-  const refresh = () => {
+  const ring = box.querySelector('.l-ptr-ind i');
+  let start = null, base = 0, y = 0, busy = false, n = 0, track = null, stop = () => {};
+  const move = (v) => { y = v; list.style.transform = 'translateY(' + v.toFixed(1) + 'px)'; ring.style.transform = 'rotate(' + v * 5 + 'deg)'; };
+  // After release a spring takes the list from wherever it is, carrying the release speed; damping 1 so it does not bob.
+  const settle = (to, v, done) => { stop(); stop = spring.to(y, to, v, move, {}, done); };
+  const refresh = (v) => {
     busy = true;
-    box.classList.add('back', 'busy');
-    box.querySelector('.l-ptr-ind i').style.transform = '';
-    move(TRIGGER);
+    box.classList.add('busy');
+    settle(TRIGGER, v);
     setTimeout(() => {
       const item = document.createElement('div');
       item.className = 'l-it new';
@@ -342,23 +343,37 @@ demo.pull = (stage, U) => {
       list.prepend(item);
       while (list.children.length > 4) list.lastChild.remove();
       box.classList.remove('busy');
-      move(0);
-      setTimeout(() => { busy = false; }, 320);
+      settle(0, 0, () => { busy = false; });
     }, 1100);
   };
-  box.addEventListener('pointerdown', (e) => { if (busy) return; start = e.clientY; box.setPointerCapture(e.pointerId); box.classList.remove('back'); });
-  box.addEventListener('pointermove', (e) => { if (start !== null) move(Math.max(0, (e.clientY - start) * .55)); });
+  box.addEventListener('pointerdown', (e) => {
+    if (busy) return;
+    stop();
+    // Undo the rubber band on the current offset, so grabbing the list mid-return picks it up where it is.
+    base = y / .55 / (1 - y / box.clientHeight);
+    start = e.clientY;
+    track = spring.tracker();
+    track.add(y);
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (start === null) return;
+    // Rubber band: the further the finger pulls, the less the list follows.
+    move(spring.rubber(Math.max(0, base + e.clientY - start), 0, 0, box.clientHeight));
+    track.add(y);
+  });
   const end = () => {
     if (start === null) return;
     start = null;
-    if (y >= TRIGGER) refresh(); else { box.classList.add('back'); move(0); }
+    const v = track.speed();
+    if (y >= TRIGGER) refresh(v); else settle(0, v);
   };
   box.addEventListener('pointerup', end);
   box.addEventListener('pointercancel', end);
   U.auto(stage, () => {
-    if (busy) return;
-    box.classList.remove('back');
-    U.tween(800, (p) => move(70 * U.easeOut(p)), refresh);
+    if (busy || start !== null) return;
+    stop();
+    U.tween(800, (p) => move(70 * U.easeOut(p)), () => refresh(0));
   }, 4600);
 };
 demo.infinite = (stage, U) => {

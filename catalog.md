@@ -1,6 +1,6 @@
 # UI 动效库目录
 
-共 133 种效果，每行一种。第一列是「页面/编号」，最后一列是可以直接打开运行的单文件，相对本目录。
+共 134 种效果，每行一种。第一列是「页面/编号」，最后一列是可以直接打开运行的单文件，相对本目录。
 
 这个文件由 src/build.py 生成，不要手改。
 
@@ -14,7 +14,7 @@
 | 01-buttons/06 | 分清主次 | 胶囊按钮 | Pill Button | 圆角拉满，观感柔和，手机界面和标签样式里很常见。 |  | snippets/01-buttons/06-胶囊按钮.html |
 | 01-buttons/07 | 防止手滑 | 危险按钮 | Danger Button | 删除、注销这种做了就撤不回的动作，用红色提醒用户看清楚。 |  | snippets/01-buttons/07-危险按钮.html |
 | 01-buttons/08 | 防止手滑 | 长按确认按钮 | Press and Hold | 删除、清空这类手滑会后悔的操作。比弹窗确认更快，也不容易误触。 |  | snippets/01-buttons/08-长按确认按钮.html |
-| 01-buttons/09 | 防止手滑 | 滑动确认 | Slide to Confirm | 付款、解锁这类要用户明确同意的动作。手机上单手就能完成。 |  | snippets/01-buttons/09-滑动确认.html |
+| 01-buttons/09 | 防止手滑 | 滑动确认 | Slide to Confirm | 付款、解锁这类要用户明确同意的动作。手机上单手就能完成。只认拖到的位置，甩一下不算同意。 | 拖过 85% 才算 · 弹簧阻尼比 1 · 两端橡皮筋 | snippets/01-buttons/09-滑动确认.html |
 | 01-buttons/10 | 一处放多个操作 | 图标按钮 | Icon Button | 收藏、下载这类看图标就明白的动作，占地很小。 |  | snippets/01-buttons/10-图标按钮.html |
 | 01-buttons/11 | 一处放多个操作 | 按钮组 | Button Group | 几个有关联的动作拼成一整条，比如上一页、今天、下一页。 |  | snippets/01-buttons/11-按钮组.html |
 | 01-buttons/12 | 一处放多个操作 | 分割按钮 | Split Button | 左半边直接执行常用动作，右半边的箭头收着其他选择。 |  | snippets/01-buttons/12-分割按钮.html |
@@ -49,7 +49,7 @@
 | 03-motion/03 | 元素出现和离开 | 缩放 | Scale / Zoom | 弹窗、图标出现时用。从小变大，视线会自然落在中间。 | 300ms · 回弹 cubic-bezier · scale | snippets/03-motion/03-缩放.html |
 | 03-motion/04 | 元素出现和离开 | 翻转 | 3D Flip | 正反两面切换，比如单词卡、答题揭晓。 | 700ms · perspective 700px · rotateY | snippets/03-motion/04-翻转.html |
 | 03-motion/05 | 元素出现和离开 | 错峰 | Stagger | 列表不是一起出现，而是一项接一项，视线会顺着往下走。 | 每项延迟 90ms · ease-out · translateY | snippets/03-motion/05-错峰.html |
-| 03-motion/06 | 元素出现和离开 | 弹性 | Spring | 先过头一点再退回来，带果冻的质感，适合轻松的界面。 | 过冲 1.16 → 回弹 0.93 → 稳定 | snippets/03-motion/06-弹性.html |
+| 03-motion/06 | 元素出现和离开 | 弹性 | Spring | 先冲过头再晃回来，带果冻的质感，适合轻松的界面。阻尼比小于 1 才会晃，越小晃得越多；等于 1 就稳稳停住。 | JS 弹簧 · 刚度 260 · 阻尼比 0.4 · 不写死时长 | snippets/03-motion/06-弹性.html |
 | 03-motion/07 | 元素出现和离开 | 缓动 | Easing | 决定动作快慢怎么变化，先快后慢最接近真实物体。这里三条线同时起跑，可以直接对比。 | linear / ease-in / ease-out | snippets/03-motion/07-缓动.html |
 | 03-motion/08 | 突出卡片和按钮 | 悬停上浮 | Hover Lift | 卡片被光标碰到时抬起一点，阴影也跟着加重，暗示它能点。 | 200ms · translateY -7px · 阴影加深 | snippets/03-motion/08-悬停上浮.html |
 | 03-motion/09 | 突出卡片和按钮 | 聚光 | Spotlight | 光斑跟着光标在卡片上移动，边框也会在光标附近亮起。 | 径向渐变 · CSS 变量记鼠标坐标 | snippets/03-motion/09-聚光.html |
@@ -69,6 +69,7 @@
 | 03-motion/23 | 提醒和装饰 | 脉冲 | Pulse | 新消息红点、直播中的标记。一圈圈往外散，安静地提醒。 | 1.8s · ease-out · scale + opacity · 两圈错开 | snippets/03-motion/23-脉冲.html |
 | 03-motion/24 | 提醒和装饰 | 变形 | Morph | 同一个元素变成另一种形状，常见于菜单图标、背景装饰。 | 5.2s · ease-in-out · border-radius + rotate | snippets/03-motion/24-变形.html |
 | 03-motion/25 | 提醒和装饰 | 线条描绘 | SVG Line Draw | Logo 开场、流程图讲解。线条像被一笔笔画出来。 | stroke-dashoffset · pathLength=1 · 2.2s | snippets/03-motion/25-线条描绘.html |
+| 03-motion/26 | 跟着手指动 | 跟手弹簧 | Gesture Spring | 拖拽、滑动、甩出去这类跟着手指走的效果，松手后用它代替固定时长的曲线：轻划和猛甩走得不一样远，拉过边界越拉越紧，松手弹回。没有手势的效果照旧用曲线。 | 刚度 300 · 阻尼比 1 · 质量 1 · 松手速度取最近 100ms · 橡皮筋 0.55 | snippets/03-motion/26-跟手弹簧.html |
 | 04-forms/01 | 填内容和传文件 | 输入框和提交按钮 | Input & Submit | 表单的最小组合，AI 不用提示也做得出来，一般不必多说。 |  | snippets/04-forms/01-输入框和提交按钮.html |
 | 04-forms/02 | 填内容和传文件 | 浮动标签 | Floating Label | 字段名先待在框里，一点进去就缩到框的上沿，填的时候也不会丢。 |  | snippets/04-forms/02-浮动标签.html |
 | 04-forms/03 | 填内容和传文件 | 搜索框 | Search Field | 平时收得短，点进去才展开。有内容时才出现清空按钮。 |  | snippets/04-forms/03-搜索框.html |
@@ -80,7 +81,7 @@
 | 04-forms/09 | 从选项里选 | 自动补全 | Autocomplete | 打几个字就列出匹配项，城市、学校这种选项太多的字段靠它。 |  | snippets/04-forms/09-自动补全.html |
 | 04-forms/10 | 从选项里选 | 级联选择 | Cascader | 一级选完才出下一级，比如省、市、区。 |  | snippets/04-forms/10-级联选择.html |
 | 04-forms/11 | 从选项里选 | 日期选择器 | Date Picker | 订酒店这种要选起止日期的场景最合适。生日就别用了，直接输入比翻月快得多。 |  | snippets/04-forms/11-日期选择器.html |
-| 04-forms/12 | 从选项里选 | 滑块 | Slider | 拖两个把手定一个大致范围，比如价格。要准确数字就旁边再配输入框。 |  | snippets/04-forms/12-滑块.html |
+| 04-forms/12 | 从选项里选 | 滑块 | Slider | 拖两个把手定一个大致范围，比如价格。要准确数字就旁边再配输入框。 | 两端橡皮筋 · 弹簧弹回 · 范围内松手即停 | snippets/04-forms/12-滑块.html |
 | 04-forms/13 | 从选项里选 | 评分 | Rating | 打分、满意度。悬停预览，点击时星星依次弹一下，下面的文字跟着变。 |  | snippets/04-forms/13-评分.html |
 | 04-forms/14 | 帮用户填对 | 必填星号 | Required | 字段名后面一个红星就够了，别把输入框都染红。 |  | snippets/04-forms/14-必填星号.html |
 | 04-forms/15 | 帮用户填对 | 帮助文字 | Helper Text | 格子下面一行说明，一直在那里，比如密码要几位，不用等出错才知道。 |  | snippets/04-forms/15-帮助文字.html |
@@ -107,7 +108,7 @@
 | 05-loading/19 | 等得久，要给进度感 | 顶部细线加载条 | Top Loading Bar | 网页切换页面时贴着顶部走的那条线，存在感低，用户知道在动就行。 |  | snippets/05-loading/19-顶部细线加载条.html |
 | 05-loading/20 | 等得久，要给进度感 | 加载文案轮播 | Loading Messages | AI 生成这种要等几十秒的任务。告诉用户正在做哪一步，等待就有了盼头。 |  | snippets/05-loading/20-加载文案轮播.html |
 | 05-loading/21 | 等得久，要给进度感 | 品牌开屏 | Logo Splash | App 启动、大型页面首次打开。把等待时间用来露一次品牌。 |  | snippets/05-loading/21-品牌开屏.html |
-| 05-loading/22 | 列表更新 | 下拉刷新 | Pull to Refresh | 手指往下拖，松开后顶上转一圈，新内容就到了。 |  | snippets/05-loading/22-下拉刷新.html |
+| 05-loading/22 | 列表更新 | 下拉刷新 | Pull to Refresh | 手指往下拖，松开后顶上转一圈，新内容就到了。 | 橡皮筋 0.55 · 弹簧阻尼比 1 · 带松手速度 | snippets/05-loading/22-下拉刷新.html |
 | 05-loading/23 | 列表更新 | 无限滚动 | Infinite Scroll | 信息流。滑到底自动接着加载，用户不用点「下一页」。 |  | snippets/05-loading/23-无限滚动.html |
 | 05-loading/24 | 列表更新 | 乐观更新 | Optimistic UI | 不等服务器回话就先显示成功，万一失败再退回去告诉用户，手感会很快。 |  | snippets/05-loading/24-乐观更新.html |
 | 05-loading/25 | 出错和没内容 | 空状态 | Empty State | 列表没东西时别留白，说明为什么是空的，再给一个能点的下一步。 |  | snippets/05-loading/25-空状态.html |
@@ -129,7 +130,7 @@
 | 06-cards/11 | 展示很多项 | 便当格 | Bento Grid | 大小不一的卡片拼成一块，把重点放大。近年官网和个人主页很流行。 |  | snippets/06-cards/11-便当格.html |
 | 06-cards/12 | 展示很多项 | 轮播 | Carousel | 几张图轮流露面，通常占首页首屏的大块位置。 |  | snippets/06-cards/12-轮播.html |
 | 06-cards/13 | 展示很多项 | 堆叠卡 | Stacked Cards | 空间有限又有多张内容时。下面露出的边提示「还有更多」。 |  | snippets/06-cards/13-堆叠卡.html |
-| 06-cards/14 | 展示很多项 | 滑动卡 | Swipe Card | 一次只决定一张，左滑不要、右滑想要。探探模式。 |  | snippets/06-cards/14-滑动卡.html |
+| 06-cards/14 | 展示很多项 | 滑动卡 | Swipe Card | 一次只决定一张，左滑不要、右滑想要。探探模式。拖得不远但甩得快，也算滑走。 | 弹簧回中 · 阻尼比 0.7 · 松手速度决定飞不飞 | snippets/06-cards/14-滑动卡.html |
 | 06-cards/15 | 标注和收纳 | 时间线 | Timeline | 竖线上串几个节点，快递走到哪一站这类记录一眼能看懂。 |  | snippets/06-cards/15-时间线.html |
 | 06-cards/16 | 标注和收纳 | 徽标 | Badge | 角上的红点或小数字，说明有新东西。数字太大就写 99+。 |  | snippets/06-cards/16-徽标.html |
 | 06-cards/17 | 标注和收纳 | 标签 | Tag | 小色块标出状态。状态多时别每种都配新色，五种上下最好认。 |  | snippets/06-cards/17-标签.html |
